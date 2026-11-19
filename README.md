@@ -18,7 +18,7 @@ Les PDF de sprint 1 utilisent un décalage de -6 (leur `ELK-7` correspond à `EL
 | Sprint | Semaines | Tickets Jira | État |
 | --- | --- | --- | --- |
 | 1 | S1-S2 | ELK-7 à ELK-12 `[T01]`-`[T06]` | Terminé (analyse, architecture, mapping, maquettes, revue n°1) |
-| 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | En cours : ELK-13 terminé ; ELK-14 à ELK-18 à faire |
+| 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | En cours : ELK-13 à ELK-15 terminés ; ELK-16 à ELK-18 à faire |
 | 3 | S5-S6 | ELK-19 à ELK-24 `[T13]`-`[T18]` | À venir (upload, ingestion, recherche, API) |
 | 4 | S7-S8 | ELK-25 à ELK-31 `[T19]`-`[T25]` | À venir (frontend et Kibana) |
 | 5 | S9-S10 | ELK-32 à ELK-34 `[T26]`-`[T28]` | À venir (observabilité) |
@@ -45,9 +45,9 @@ Les PDF de sprint 1 utilisent un décalage de -6 (leur `ELK-7` correspond à `EL
 README.md               ce fichier
 .env.example            variables d'environnement (sans secrets)
 .gitignore
-docker-compose.yml      6 services du socle (ELK-14, à venir)
-Dockerfile              image Flask (ELK-15, à venir)
-requirements.txt        dépendances Python (ELK-15, à venir)
+docker-compose.yml      6 services du socle (ELK-14)
+Dockerfile              image Flask python:3.11-slim (ELK-15)
+requirements.txt        dépendances Python minimales (ELK-15)
 elasticsearch/
   load_templates.sh     chargement des 5 index templates
   templates/            logs-{capteurs,alertes,maintenance,energie,occupation}.json
@@ -88,16 +88,26 @@ monitoring/             Prometheus et Grafana (ELK-33, ELK-34)
 
 ## Démarrage rapide
 
-Disponible après ELK-14 et ELK-15 :
+Six services permanents sur le réseau `elk-net` : Elasticsearch 8.17.0, Logstash 8.17.0, Kibana 8.17.0, MongoDB 7, Redis 7 et l'application Flask. Elasticsearch et Kibana démarrent avec `xpack.security.enabled=true` ; les credentials sont lus depuis `.env` (jamais versionné). Le service ponctuel `kibana-setup` configure le mot de passe du compte `kibana_system` avant le démarrage de Kibana.
 
 ```bash
 cp .env.example .env
+# Renseigner ELASTIC_PASSWORD et KIBANA_SYSTEM_PASSWORD dans .env
 docker compose up -d --build
 docker compose ps
+curl -u elastic:$ELASTIC_PASSWORD localhost:9200/_cluster/health
+curl localhost:5601/api/status
+curl localhost:5000/
 curl localhost:5000/health
 ```
 
-Kibana : `http://localhost:5601`. Interface web : `http://localhost:5000`.
+Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana). MongoDB, Redis et Logstash restent internes au réseau Docker.
+
+- Kibana : `http://localhost:5601`
+- Interface web : `http://localhost:5000`
+- API Logstash (interne) : `http://elk-logstash:9600/_node/pipelines`
+
+Le pipeline Logstash livré en ELK-14 est un pipeline bootstrap qui lit `data/inbox` et affiche les événements dans les logs ; les pipelines CSV et JSON réels arrivent en ELK-22.
 
 ## Schémas de données (S2)
 
@@ -116,4 +126,5 @@ Les templates utilisent une priorité 200, 1 shard, 0 réplica et un rafraîchis
 ## Points à consigner suite à la revue n°1
 
 - Port de l'application web : 5000 dans le livrable d'architecture, 8000 dans le sujet. Valeur actuelle : 5000.
+- Version ELK figée à 8.17.0 : le layer de l'image 8.19.0 est corrompu dans le cache Docker local.
 - Durées de vie Redis (60 s / 10 s / 300 s) et valeurs de seuils à confirmer avec l'encadrant.
