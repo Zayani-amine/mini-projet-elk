@@ -1,0 +1,3 @@
+{"@timestamp": "2026-11-19T19:27:45Z", "log_type": "energie", "meter_id": "CPT-Z1", "zone": "Z1", "energy_type": "heating", "quantity": 15.12, "unit": "kWh", "threshold_breached": false}
+{"@timestamp": "2026-11-19T19:27:45Z", "log_type": "energie", "meter_id": "CPT-Z2", "zone": "Z2", "energy_type": "heating", "quantity": 66.83, "unit": "kWh", "threshold_breached": false}
+{"@timestamp": "2026-11-19T19:27:45Z", "log_type": "energie", "meter_id": "CPT-Z3", "zone": "Z3", "energy_type": "heating", "quantity": 106.1, "unit": "kWh", "threshold_breached": true}

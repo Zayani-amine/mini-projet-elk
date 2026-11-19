@@ -1,0 +1,4 @@
+@timestamp,log_type,room_id,zone,present_count,capacity,occupancy_rate
+2026-11-19T19:42:45Z,occupation,SAL-Z1-3,Z1,5,41,12.2
+2026-11-19T19:42:45Z,occupation,SAL-Z2-3,Z2,90,91,98.9
+2026-11-19T19:42:45Z,occupation,SAL-Z3-3,Z3,0,120,0.0

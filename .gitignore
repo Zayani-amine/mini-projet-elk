@@ -21,3 +21,6 @@ htmlcov/
 *.swp
 .DS_Store
 Thumbs.db
+
+docs/sprints/*.md
+docs/sprints/.build/

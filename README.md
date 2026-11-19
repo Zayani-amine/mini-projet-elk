@@ -18,7 +18,7 @@ Les PDF de sprint 1 utilisent un décalage de -6 (leur `ELK-7` correspond à `EL
 | Sprint | Semaines | Tickets Jira | État |
 | --- | --- | --- | --- |
 | 1 | S1-S2 | ELK-7 à ELK-12 `[T01]`-`[T06]` | Terminé (analyse, architecture, mapping, maquettes, revue n°1) |
-| 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | En cours : ELK-13 à ELK-15 terminés ; ELK-16 à ELK-18 à faire |
+| 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | En cours : ELK-13 à ELK-16 terminés ; ELK-17 à ELK-18 à faire |
 | 3 | S5-S6 | ELK-19 à ELK-24 `[T13]`-`[T18]` | À venir (upload, ingestion, recherche, API) |
 | 4 | S7-S8 | ELK-25 à ELK-31 `[T19]`-`[T25]` | À venir (frontend et Kibana) |
 | 5 | S9-S10 | ELK-32 à ELK-34 `[T26]`-`[T28]` | À venir (observabilité) |

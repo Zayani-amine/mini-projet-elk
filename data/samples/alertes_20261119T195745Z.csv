@@ -1,0 +1,7 @@
+@timestamp,log_type,alert_id,sensor_id,zone,measure,severity,rule,value,threshold
+2026-11-19T19:45:46Z,alertes,ALT-000001,CAP-0001,Z1,co2,critical,co2_critical,1244.42,1200.0
+2026-11-19T19:22:46Z,alertes,ALT-000002,CAP-0004,Z1,co2,warning,co2_warning,1183.8,1000.0
+2026-11-19T19:45:46Z,alertes,ALT-000003,CAP-0009,Z3,humidity,warning,humidity_warning,70.94,65.0
+2026-11-19T19:36:46Z,alertes,ALT-000004,CAP-0010,Z1,temperature,critical,temperature_critical,30.15,30.0
+2026-11-19T19:16:46Z,alertes,ALT-000005,CAP-0012,Z3,humidity,warning,humidity_warning,70.45,65.0
+2026-11-19T19:25:46Z,alertes,ALT-000006,CAP-0019,Z1,co2,warning,co2_warning,1119.7,1000.0

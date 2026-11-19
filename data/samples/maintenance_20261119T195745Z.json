@@ -1,0 +1,2 @@
+{"@timestamp": "2026-11-19T19:57:45Z", "log_type": "maintenance", "equipment_id": "EQP-0010", "equipment_type": "elevator", "zone": "Z1", "wear_level": 32.01, "predicted_failure": false, "estimated_due_date": "2027-01-05"}
+{"@timestamp": "2026-11-19T19:57:45Z", "log_type": "maintenance", "equipment_id": "EQP-0013", "equipment_type": "pump", "zone": "Z1", "wear_level": 55.13, "predicted_failure": false, "estimated_due_date": "2026-12-12"}
