@@ -1,8 +1,27 @@
+import os
+
 from flask import Flask, jsonify
+from werkzeug.exceptions import RequestEntityTooLarge
+
+from app.api.files import api_v1
 
 
 def create_app():
     app = Flask(__name__)
+
+    max_bytes = int(os.environ.get("MAX_UPLOAD_BYTES", "104857600"))
+    app.config["MAX_CONTENT_LENGTH"] = max_bytes
+    app.config["MAX_UPLOAD_BYTES"] = max_bytes
+    app.config["STAGING_DIR"] = os.environ.get("STAGING_DIR", "/app/data/staging")
+
+    app.register_blueprint(api_v1)
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def request_too_large(_error):
+        return jsonify(
+            error="file_too_large",
+            message="Uploaded file is too large.",
+        ), 413
 
     @app.get("/")
     def index():
