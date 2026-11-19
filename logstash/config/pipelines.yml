@@ -1,0 +1,2 @@
+- pipeline.id: bootstrap
+  path.config: "/usr/share/logstash/pipeline/00-bootstrap.conf"

@@ -1,0 +1,167 @@
+name: mini-projet-elk
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elk-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - elk-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs -u elastic:${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health > /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${ELASTIC_VERSION}
+    container_name: elk-logstash
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      LS_JAVA_OPTS: "-Xms512m -Xmx512m"
+      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_HOSTS}
+      ELASTICSEARCH_USER: ${ELASTIC_USERNAME}
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD}
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./data/inbox:/usr/share/logstash/inbox
+      - logstash_data:/usr/share/logstash/data
+    networks:
+      - elk-net
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/9600'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  kibana-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elk-kibana-setup
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        curl -fsS -u "elastic:$$ELASTIC_PASSWORD" http://elasticsearch:9200 > /dev/null
+        curl -fsS -X POST -H 'Content-Type: application/json' \
+          -u "elastic:$$ELASTIC_PASSWORD" \
+          http://elasticsearch:9200/_security/user/kibana_system/_password \
+          -d "{\"password\":\"$$KIBANA_SYSTEM_PASSWORD\"}"
+    restart: "no"
+    networks:
+      - elk-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION}
+    container_name: elk-kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana-setup:
+        condition: service_completed_successfully
+    environment:
+      ELASTICSEARCH_HOSTS: ${ELASTICSEARCH_HOSTS}
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${KIBANA_SYSTEM_PASSWORD}
+    ports:
+      - "5601:5601"
+    networks:
+      - elk-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:5601/api/status > /dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  mongodb:
+    image: mongo:7
+    container_name: elk-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - elk-net
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)'"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: elk-redis
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - elk-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  webapp:
+    build: .
+    container_name: elk-webapp
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      FLASK_APP: ${FLASK_APP}
+      FLASK_ENV: ${FLASK_ENV}
+      ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST}
+      ELASTIC_USERNAME: ${ELASTIC_USERNAME}
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+      MONGODB_URI: ${MONGODB_URI}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES}
+    ports:
+      - "${WEBAPP_PORT}:5000"
+    volumes:
+      - ./data/inbox:/app/data/inbox
+    networks:
+      - elk-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+networks:
+  elk-net:
+    driver: bridge
+
+volumes:
+  es_data:
+  mongo_data:
+  logstash_data:

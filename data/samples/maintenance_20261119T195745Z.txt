@@ -1,0 +1,3 @@
+@timestamp|log_type|equipment_id|equipment_type|zone|wear_level|predicted_failure|estimated_due_date
+2026-11-19T19:57:45Z|maintenance|EQP-0010|elevator|Z1|32.01|False|2027-01-05
+2026-11-19T19:57:45Z|maintenance|EQP-0013|pump|Z1|55.13|False|2026-12-12

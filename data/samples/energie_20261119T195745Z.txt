@@ -1,0 +1,4 @@
+@timestamp|log_type|meter_id|zone|energy_type|quantity|unit|threshold_breached
+2026-11-19T19:27:45Z|energie|CPT-Z1|Z1|heating|15.12|kWh|False
+2026-11-19T19:27:45Z|energie|CPT-Z2|Z2|heating|66.83|kWh|False
+2026-11-19T19:27:45Z|energie|CPT-Z3|Z3|heating|106.1|kWh|True
