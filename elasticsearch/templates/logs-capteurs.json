@@ -1,6 +1,6 @@
 {
   "index_patterns": [
-    "logs-capteurs-*"
+    "logs-capteurs"
   ],
   "priority": 200,
   "version": 1,

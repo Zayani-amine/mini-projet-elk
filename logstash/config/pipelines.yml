@@ -1,2 +1,5 @@
 - pipeline.id: bootstrap
   path.config: "/usr/share/logstash/pipeline/00-bootstrap.conf"
+
+- pipeline.id: generated-to-es
+  path.config: "/usr/share/logstash/pipeline/05-generated-to-es.conf"

@@ -18,7 +18,7 @@ Les PDF de sprint 1 utilisent un décalage de -6 (leur `ELK-7` correspond à `EL
 | Sprint | Semaines | Tickets Jira | État |
 | --- | --- | --- | --- |
 | 1 | S1-S2 | ELK-7 à ELK-12 `[T01]`-`[T06]` | Terminé (analyse, architecture, mapping, maquettes, revue n°1) |
-| 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | En cours : ELK-13 à ELK-16 terminés ; ELK-17 à ELK-18 à faire |
+| 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | En cours : ELK-13 à ELK-17 terminés ; ELK-18 à faire |
 | 3 | S5-S6 | ELK-19 à ELK-24 `[T13]`-`[T18]` | À venir (upload, ingestion, recherche, API) |
 | 4 | S7-S8 | ELK-25 à ELK-31 `[T19]`-`[T25]` | À venir (frontend et Kibana) |
 | 5 | S9-S10 | ELK-32 à ELK-34 `[T26]`-`[T28]` | À venir (observabilité) |
@@ -52,13 +52,14 @@ elasticsearch/
   load_templates.sh     chargement des 5 index templates
   templates/            logs-{capteurs,alertes,maintenance,energie,occupation}.json
 logstash/
-  pipeline/             00-bootstrap.conf (ELK-14) ; csv.conf et json.conf (ELK-22)
+  pipeline/             00-bootstrap.conf (ELK-14) ; 05-generated-to-es.conf (ELK-17) ; csv.conf et json.conf (ELK-22)
   config/               logstash.yml et pipelines.yml (ELK-14)
 mongodb/
   init_mongo.js         base elk_logs : files, searches, thresholds
 redis/
   redis.conf            cache (ELK-14)
 kibana/
+  setup_data_view.sh    data view logs-* (ELK-17)
   dashboards/           exports JSON (ELK-31)
   visualizations/       exports JSON (ELK-31)
 app/
@@ -107,7 +108,7 @@ Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana). MongoD
 - Interface web : `http://localhost:5000`
 - API Logstash (interne) : `http://elk-logstash:9600/_node/pipelines`
 
-Le pipeline Logstash livré en ELK-14 est un pipeline bootstrap qui lit `data/inbox` et affiche les événements dans les logs ; les pipelines CSV et JSON réels arrivent en ELK-22.
+Le pipeline `main` charge `00-bootstrap.conf` (fichiers déposés dans `data/inbox/*.json`, affichés en stdout) et `05-generated-to-es.conf` (JSONL de `data/inbox/generated/`, indexés dans `logs-<type>`). Les templates sont chargés avec `elasticsearch/load_templates.sh` et la data view `logs-*` avec `kibana/setup_data_view.sh`. Les noms `logs-<type>` évitent le template de data stream intégré `logs-*-*` d'Elasticsearch 8. Les pipelines CSV/TXT et la gestion des erreurs arrivent en ELK-22.
 
 ## Schémas de données (S2)
 
@@ -118,6 +119,7 @@ Chargement manuel des templates (une fois la stack démarrée) :
 ```bash
 export ELASTIC_PASSWORD=...
 bash elasticsearch/load_templates.sh
+bash kibana/setup_data_view.sh
 mongosh "mongodb://admin:PASSWORD@localhost:27017/?authSource=admin" mongodb/init_mongo.js
 ```
 
