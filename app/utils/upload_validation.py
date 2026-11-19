@@ -7,6 +7,7 @@ from pathlib import Path
 
 ALLOWED_EXTENSIONS = {"json", "csv", "txt"}
 LOG_TYPES = {"capteurs", "alertes", "maintenance", "energie", "occupation"}
+PREVIEW_LIMIT = 10
 REQUIRED_FIELDS = {
     "capteurs": ("sensor_id", "zone", "measure", "value", "unit"),
     "alertes": ("alert_id", "sensor_id", "severity", "rule", "threshold"),
@@ -20,6 +21,10 @@ class UploadValidationError(ValueError):
     def __init__(self, message, status_code=400):
         super().__init__(message)
         self.status_code = status_code
+
+
+def _preview_lines(text):
+    return [line.strip() for line in text.splitlines() if line.strip()][:PREVIEW_LIMIT]
 
 
 def _records_from_json(text):
@@ -120,6 +125,7 @@ def validate_upload(filename, content, max_bytes):
         "format": extension,
         "log_type": log_type,
         "logs_count": len(records),
+        "preview": _preview_lines(text),
         "records": records,
         "sha256": hashlib.sha256(content).hexdigest(),
         "size_bytes": len(content),
