@@ -5,6 +5,7 @@ data/inbox/*
 !data/inbox/.gitkeep
 data/generated/*
 !data/generated/.gitkeep
+data/staging/
 
 logstash/thresholds.json
 

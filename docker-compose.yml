@@ -148,6 +148,7 @@ services:
       - "${WEBAPP_PORT}:5000"
     volumes:
       - ./data/inbox:/app/data/inbox
+      - ./data/staging:/app/data/staging
     networks:
       - elk-net
     healthcheck:

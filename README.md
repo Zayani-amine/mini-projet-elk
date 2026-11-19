@@ -102,7 +102,10 @@ curl -u elastic:$ELASTIC_PASSWORD localhost:9200/_cluster/health
 curl localhost:5601/api/status
 curl localhost:5000/
 curl localhost:5000/health
+curl -F "file=@data/samples/capteurs_20261119T195745Z.json" localhost:5000/api/v1/upload
 ```
+
+Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log et crée un document dans la collection MongoDB `files` (ELK-19).
 
 Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana). MongoDB, Redis et Logstash restent internes au réseau Docker.
 
