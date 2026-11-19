@@ -1,0 +1,64 @@
+{
+  "index_patterns": [
+    "logs-occupation-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "ELK-11 : Logs d'occupation (Smart Building IoT)"
+  },
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "room_id": {
+          "type": "keyword"
+        },
+        "zone": {
+          "type": "keyword"
+        },
+        "present_count": {
+          "type": "integer"
+        },
+        "capacity": {
+          "type": "integer"
+        },
+        "occupancy_rate": {
+          "type": "float"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "entity_id": {
+          "type": "alias",
+          "path": "room_id"
+        },
+        "source_file_id": {
+          "type": "keyword"
+        },
+        "ingested_at": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

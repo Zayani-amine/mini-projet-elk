@@ -1,0 +1,67 @@
+{
+  "index_patterns": [
+    "logs-maintenance-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "ELK-11 : Logs de maintenance préventive (Smart Building IoT)"
+  },
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "equipment_id": {
+          "type": "keyword"
+        },
+        "equipment_type": {
+          "type": "keyword"
+        },
+        "zone": {
+          "type": "keyword"
+        },
+        "wear_level": {
+          "type": "float"
+        },
+        "predicted_failure": {
+          "type": "boolean"
+        },
+        "estimated_due_date": {
+          "type": "date"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "entity_id": {
+          "type": "alias",
+          "path": "equipment_id"
+        },
+        "source_file_id": {
+          "type": "keyword"
+        },
+        "ingested_at": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

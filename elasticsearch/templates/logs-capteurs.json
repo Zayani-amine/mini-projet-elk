@@ -1,0 +1,73 @@
+{
+  "index_patterns": [
+    "logs-capteurs-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "ELK-11 : Logs de capteurs (Smart Building IoT)"
+  },
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "sensor_id": {
+          "type": "keyword"
+        },
+        "zone": {
+          "type": "keyword"
+        },
+        "floor": {
+          "type": "integer"
+        },
+        "measure": {
+          "type": "keyword"
+        },
+        "value": {
+          "type": "float"
+        },
+        "unit": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "threshold_breached": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "entity_id": {
+          "type": "alias",
+          "path": "sensor_id"
+        },
+        "source_file_id": {
+          "type": "keyword"
+        },
+        "ingested_at": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

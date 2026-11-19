@@ -1,0 +1,67 @@
+{
+  "index_patterns": [
+    "logs-energie-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "ELK-11 : Logs de consommation énergétique (Smart Building IoT)"
+  },
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "meter_id": {
+          "type": "keyword"
+        },
+        "zone": {
+          "type": "keyword"
+        },
+        "energy_type": {
+          "type": "keyword"
+        },
+        "quantity": {
+          "type": "float"
+        },
+        "unit": {
+          "type": "keyword"
+        },
+        "threshold_breached": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "entity_id": {
+          "type": "alias",
+          "path": "meter_id"
+        },
+        "source_file_id": {
+          "type": "keyword"
+        },
+        "ingested_at": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}
