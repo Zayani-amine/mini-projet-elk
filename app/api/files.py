@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
+from bson.errors import InvalidId
+from bson.objectid import ObjectId
 from flask import Blueprint, current_app, jsonify, request
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
@@ -18,6 +20,16 @@ def _staging_path(stored_name):
     directory = Path(current_app.config["STAGING_DIR"])
     directory.mkdir(parents=True, exist_ok=True)
     return directory / stored_name
+
+
+def _serialize_file(document):
+    data = dict(document)
+    data["file_id"] = str(data.pop("_id"))
+    for field in ("uploaded_at", "updated_at", "indexed_at"):
+        if data.get(field) is not None:
+            data[field] = data[field].isoformat()
+    data.setdefault("preview", [])
+    return data
 
 
 @api_v1.post("/upload")
@@ -51,6 +63,7 @@ def upload_file():
         "sha256": result["sha256"],
         "status": "validated",
         "logs_count": result["logs_count"],
+        "preview": result["preview"],
         "error_message": None,
         "es_index": None,
         "uploaded_at": now,
@@ -82,6 +95,34 @@ def upload_file():
         size_bytes=result["size_bytes"],
         sha256=result["sha256"],
         logs_count=result["logs_count"],
+        preview=result["preview"],
         status="validated",
         uploaded_at=now.isoformat(),
     ), 201
+
+
+@api_v1.get("/files/<file_id>")
+def get_file(file_id):
+    try:
+        object_id = ObjectId(file_id)
+    except InvalidId:
+        return jsonify(
+            error="invalid_file_id",
+            message="The file_id must be a 24-character hexadecimal ObjectId.",
+        ), 400
+
+    try:
+        document = get_files_collection().find_one({"_id": object_id})
+    except PyMongoError as exc:
+        return jsonify(
+            error="database_unavailable",
+            message="MongoDB is not available: %s" % exc,
+        ), 503
+
+    if document is None:
+        return jsonify(
+            error="file_not_found",
+            message="No file found with id %s." % file_id,
+        ), 404
+
+    return jsonify(_serialize_file(document)), 200
