@@ -93,6 +93,16 @@ monitoring/             Prometheus et Grafana (ELK-33, ELK-34)
 
 Six services permanents sur le réseau `elk-net` : Elasticsearch 8.17.0, Logstash 8.17.0, Kibana 8.17.0, MongoDB 7, Redis 7 et l'application Flask. Elasticsearch et Kibana démarrent avec `xpack.security.enabled=true` ; les credentials sont lus depuis `.env` (jamais versionné). Le service ponctuel `kibana-setup` configure le mot de passe du compte `kibana_system` avant le démarrage de Kibana.
 
+Prérequis : Docker Engine avec le plugin `docker compose` v2, Python 3 et un shell bash (Linux, macOS, WSL ou Git Bash).
+
+```bash
+./scripts/deploy.sh
+```
+
+Le script crée `.env` depuis `.env.example` avec des secrets aléatoires si le fichier n'existe pas, lance `docker compose up -d --build`, puis attend que les 6 services permanents soient `healthy` avant d'afficher les URL (US10).
+
+Installation manuelle équivalente :
+
 ```bash
 cp .env.example .env
 # Renseigner ELASTIC_PASSWORD et KIBANA_SYSTEM_PASSWORD dans .env
