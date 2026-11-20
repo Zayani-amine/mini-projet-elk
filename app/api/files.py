@@ -1,3 +1,4 @@
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,10 +23,20 @@ def _staging_path(stored_name):
     return directory / stored_name
 
 
+def _publish_to_inbox(stored_name):
+    directory = Path(current_app.config["INBOX_DIR"])
+    directory.mkdir(parents=True, exist_ok=True)
+    temporary = directory / (stored_name + ".tmp")
+    final = directory / stored_name
+    shutil.copyfile(_staging_path(stored_name), temporary)
+    temporary.replace(final)
+    return final
+
+
 def _serialize_file(document):
     data = dict(document)
     data["file_id"] = str(data.pop("_id"))
-    for field in ("uploaded_at", "updated_at", "indexed_at"):
+    for field in ("uploaded_at", "updated_at", "sent_at", "indexed_at"):
         if data.get(field) is not None:
             data[field] = data[field].isoformat()
     data.setdefault("preview", [])
@@ -51,12 +62,16 @@ def upload_file():
     now = _utc_now()
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     stored_name = "%s_%s.%s" % (stamp, result["sha256"][:12], result["format"])
+    source_file_id = Path(stored_name).stem
     staged_path = _staging_path(stored_name)
     staged_path.write_bytes(content)
 
+    collection = get_files_collection()
     document = {
         "original_name": uploaded.filename,
         "stored_name": stored_name,
+        "source_file_id": source_file_id,
+        "upload_path": "uploads/" + stored_name,
         "log_type": result["log_type"],
         "format": result["format"],
         "size_bytes": result["size_bytes"],
@@ -68,11 +83,12 @@ def upload_file():
         "es_index": None,
         "uploaded_at": now,
         "updated_at": now,
+        "sent_at": None,
         "indexed_at": None,
     }
 
     try:
-        inserted = get_files_collection().insert_one(document)
+        inserted = collection.insert_one(document)
     except DuplicateKeyError:
         staged_path.unlink(missing_ok=True)
         return jsonify(
@@ -86,17 +102,45 @@ def upload_file():
             message="MongoDB is not available: %s" % exc,
         ), 503
 
+    try:
+        _publish_to_inbox(stored_name)
+    except OSError as exc:
+        failed_at = _utc_now()
+        collection.update_one(
+            {"_id": inserted.inserted_id},
+            {
+                "$set": {
+                    "status": "failed",
+                    "error_message": "Publish to inbox failed: %s" % exc,
+                    "updated_at": failed_at,
+                }
+            },
+        )
+        return jsonify(
+            error="publish_failed",
+            message="The file could not be sent to Logstash: %s" % exc,
+        ), 503
+
+    sent_at = _utc_now()
+    collection.update_one(
+        {"_id": inserted.inserted_id},
+        {"$set": {"status": "ingesting", "sent_at": sent_at, "updated_at": sent_at}},
+    )
+
     return jsonify(
         file_id=str(inserted.inserted_id),
         original_name=uploaded.filename,
         stored_name=stored_name,
+        source_file_id=source_file_id,
+        upload_path="uploads/" + stored_name,
         log_type=result["log_type"],
         format=result["format"],
         size_bytes=result["size_bytes"],
         sha256=result["sha256"],
         logs_count=result["logs_count"],
         preview=result["preview"],
-        status="validated",
+        status="ingesting",
+        sent_at=sent_at.isoformat(),
         uploaded_at=now.isoformat(),
     ), 201
 
