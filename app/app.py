@@ -13,8 +13,14 @@ def create_app():
     app.config["MAX_CONTENT_LENGTH"] = max_bytes
     app.config["MAX_UPLOAD_BYTES"] = max_bytes
     app.config["STAGING_DIR"] = os.environ.get("STAGING_DIR", "/app/data/staging")
+    app.config["INBOX_DIR"] = os.environ.get("INBOX_DIR", "/app/data/inbox/uploads")
 
     app.register_blueprint(api_v1)
+
+    if os.environ.get("ENABLE_STATUS_POLLER", "1") == "1":
+        from app.services.ingest_status import start_status_poller
+
+        start_status_poller(app)
 
     @app.errorhandler(RequestEntityTooLarge)
     def request_too_large(_error):

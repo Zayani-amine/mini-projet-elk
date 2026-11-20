@@ -25,6 +25,12 @@ if (!existing.includes("files")) {
       "stored_name": {
         "bsonType": "string"
       },
+      "source_file_id": {
+        "bsonType": "string"
+      },
+      "upload_path": {
+        "bsonType": "string"
+      },
       "log_type": {
         "enum": [
           "capteurs",
@@ -88,9 +94,21 @@ if (!existing.includes("files")) {
       "updated_at": {
         "bsonType": "date"
       },
+      "sent_at": {
+        "bsonType": [
+          "date",
+          "null"
+        ]
+      },
       "indexed_at": {
         "bsonType": [
           "date",
+          "null"
+        ]
+      },
+      "indexed_count": {
+        "bsonType": [
+          "number",
           "null"
         ]
       }
@@ -100,6 +118,7 @@ if (!existing.includes("files")) {
 database.files.createIndex({"uploaded_at": -1}, {});
 database.files.createIndex({"status": 1, "uploaded_at": -1}, {});
 database.files.createIndex({"log_type": 1}, {});
+database.files.createIndex({"source_file_id": 1}, {});
 database.files.createIndex({"sha256": 1}, {"unique": true});
 
 // ---- searches : historique des recherches (BF5, BF9)

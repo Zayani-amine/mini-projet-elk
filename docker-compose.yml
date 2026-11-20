@@ -144,6 +144,9 @@ services:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
       MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES}
+      INBOX_DIR: ${INBOX_DIR:-/app/data/inbox/uploads}
+      ENABLE_STATUS_POLLER: ${ENABLE_STATUS_POLLER:-1}
+      STATUS_POLL_INTERVAL: ${STATUS_POLL_INTERVAL:-5}
     ports:
       - "${WEBAPP_PORT}:5000"
     volumes:

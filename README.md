@@ -116,7 +116,7 @@ curl -F "file=@data/samples/capteurs_20261119T195745Z.json" localhost:5000/api/v
 curl localhost:5000/api/v1/files/<file_id>
 ```
 
-Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log et crée un document dans la collection MongoDB `files` (ELK-19). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées et un aperçu des 10 premières lignes (ELK-20).
+Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log, copie le fichier dans `data/inbox/uploads/` avec le statut `ingesting`, puis un polleur Flask interroge Elasticsearch par `source_file_id` pour passer le document à `indexed` dès que `logs_count` événements sont présents (ELK-21). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées, l'aperçu des 10 premières lignes (ELK-20) et le statut d'indexation.
 
 Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana). MongoDB, Redis et Logstash restent internes au réseau Docker.
 
@@ -124,7 +124,7 @@ Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana). MongoD
 - Interface web : `http://localhost:5000`
 - API Logstash (interne) : `http://elk-logstash:9600/_node/pipelines`
 
-Le pipeline `main` charge `00-bootstrap.conf` (fichiers déposés dans `data/inbox/*.json`, affichés en stdout) et `05-generated-to-es.conf` (JSONL de `data/inbox/generated/`, indexés dans `logs-<type>`). Les templates sont chargés avec `elasticsearch/load_templates.sh` et la data view `logs-*` avec `kibana/setup_data_view.sh`. Les noms `logs-<type>` évitent le template de data stream intégré `logs-*-*` d'Elasticsearch 8. Les pipelines CSV/TXT et la gestion des erreurs arrivent en ELK-22.
+Le pipeline `main` charge `00-bootstrap.conf` (fichiers déposés dans `data/inbox/*.json`, affichés en stdout), `05-generated-to-es.conf` (JSONL de `data/inbox/generated/`) et `06-uploads-to-es.conf` (JSON/CSV/TXT uploadés dans `data/inbox/uploads/`, indexés dans `logs-<type>` avec `source_file_id`). `pipeline.workers: 1` est requis pour l'auto-détection des en-têtes CSV/TXT. Les templates sont chargés avec `elasticsearch/load_templates.sh` et la data view `logs-*` avec `kibana/setup_data_view.sh`. Les noms `logs-<type>` évitent le template de data stream intégré `logs-*-*` d'Elasticsearch 8. La gestion des erreurs et le marquage des seuils arrivent en ELK-22.
 
 ## Schémas de données (S2)
 
