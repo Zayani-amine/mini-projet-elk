@@ -99,7 +99,7 @@ def validate_upload(filename, content, max_bytes):
     extension = Path(filename).suffix.lower().lstrip(".")
     if extension not in ALLOWED_EXTENSIONS:
         raise UploadValidationError(
-            "Unsupported file format '%s'; expected csv, json or txt" % extension,
+            "Unsupported file format '%s'; allowed: .csv, .json, .txt" % extension,
             415,
         )
 

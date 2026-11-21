@@ -167,17 +167,18 @@ Pour chaque upload valide, le compteur `sb-logs-*` doit être égal à `logs_cou
 ```bash
 curl --get localhost:5000/api/v1/search --data-urlencode 'q=temperature' --data-urlencode 'log_type=capteurs' --data-urlencode 'from=2026-11-21T00:00:00Z' --data-urlencode 'size=10'
 curl --get localhost:5000/api/v1/search --data-urlencode 'source_file_id=20261121T083640Z_56a696014a2c'
+curl --get localhost:5000/api/v1/search --data-urlencode 'q=temperatur' --data-urlencode 'log_type=capteurs' --data-urlencode 'size=10'
 curl 'localhost:5000/api/v1/history?page=1&size=10'
 ```
 
-La recherche retourne `results`, `total`, `page`, `size`, `took_ms` et `history_id`. Les filtres `from`/`to` sont inclusifs et acceptent l'ISO-8601 avec `Z`. `size` est plafonné à 100. Chaque recherche valide ajoute un document dans `searches` avec `cache_hit: false` ; l'historique est trié du plus récent au plus ancien et conservé 90 jours par le TTL MongoDB.
+La recherche retourne `results`, `total`, `page`, `size`, `took_ms` et `history_id`. Le paramètre `q` est tolérant aux fautes de frappe (`temperatur` trouve `temperature`) : les correspondances exactes restent prioritaires, puis une requête floue `fuzziness: AUTO` est appliquée. Les filtres `from`/`to` restent inclusifs, acceptent l'ISO-8601 avec `Z` et disposent d'un sélecteur de date/heure dans Swagger UI. `size` est plafonné à 100. Chaque recherche valide ajoute un document dans `searches` avec `cache_hit: false` ; l'historique est trié du plus récent au plus ancien et conservé 90 jours par le TTL MongoDB.
 
 ## Vérification ELK-24
 
 Les 7 étapes à exécuter depuis Swagger UI (`http://localhost:5000/docs`) :
 
 1. `GET /health` : réponse `200` avec `status: healthy`.
-2. `POST /api/v1/upload` : joindre `data/samples/capteurs_20261119T195745Z.json`, réponse `201` avec `file_id`.
+2. `POST /api/v1/upload` : joindre `data/samples/capteurs_20261119T195745Z.json`, réponse `201` avec `file_id`. Le sélecteur de fichier Swagger est filtré sur `.csv`, `.json` et `.txt` ; tout autre format est rejeté par l'API avec un `415` JSON normalisé.
 3. `GET /api/v1/files/{file_id}` : réponse `200`, `status: indexed`, `indexed_count` égal à `logs_count`.
 4. `GET /api/v1/search` avec `log_type=capteurs` et `size=10` : réponse `200` avec des résultats et un `history_id`.
 5. `GET /api/v1/history` : réponse `200` contenant la recherche précédente.
@@ -192,6 +193,7 @@ curl localhost:5000/docs
 curl localhost:5000/openapi.json
 truncate -s 101M /tmp/capteurs_trop_gros.csv
 curl -F "file=@/tmp/capteurs_trop_gros.csv;filename=capteurs_trop_gros.csv" localhost:5000/api/v1/upload
+curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/upload
 ```
 
 ## Points à consigner suite à la revue n°1
