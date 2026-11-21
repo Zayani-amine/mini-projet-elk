@@ -116,7 +116,11 @@ curl -F "file=@data/samples/capteurs_20261119T195745Z.json" localhost:5000/api/v
 curl localhost:5000/api/v1/files/<file_id>
 curl --get localhost:5000/api/v1/search --data-urlencode 'q=temperature' --data-urlencode 'log_type=capteurs' --data-urlencode 'size=10'
 curl 'localhost:5000/api/v1/history?page=1&size=10'
+curl localhost:5000/docs
+curl localhost:5000/openapi.json
 ```
+
+La documentation interactive Swagger UI est disponible sur `http://localhost:5000/docs` et la spécification OpenAPI sur `http://localhost:5000/openapi.json` (ELK-24). Toutes les routes de l'API sont documentées et exécutables depuis Swagger. Les erreurs suivent un format JSON unique (BNF4) : `{"error":{"code":"...","message":"...","status":400,"detail":{}}}`. Les erreurs APIFlask et Werkzeug (400, 404, 405, 413, 415, 500, 503) passent par le même processeur d'erreur.
 
 Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log, copie le fichier dans `data/inbox/uploads/` avec le statut `ingesting`, puis un polleur Flask interroge Elasticsearch par `source_file_id` pour passer le document à `indexed` dès que `logs_count` événements sont présents (ELK-21). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées, l'aperçu des 10 premières lignes (ELK-20) et le statut d'indexation. Le endpoint `GET /api/v1/search` interroge `sb-logs-*,logs-*` avec `q`, `log_type`, `from`, `to`, `source_file_id`, `severity`, `zone`, `entity_id`, `page`, `size` et `sort` (ELK-23) ; chaque requête est tracée dans la collection Mongo `searches` et consultable via `GET /api/v1/history`.
 
@@ -167,6 +171,28 @@ curl 'localhost:5000/api/v1/history?page=1&size=10'
 ```
 
 La recherche retourne `results`, `total`, `page`, `size`, `took_ms` et `history_id`. Les filtres `from`/`to` sont inclusifs et acceptent l'ISO-8601 avec `Z`. `size` est plafonné à 100. Chaque recherche valide ajoute un document dans `searches` avec `cache_hit: false` ; l'historique est trié du plus récent au plus ancien et conservé 90 jours par le TTL MongoDB.
+
+## Vérification ELK-24
+
+Les 7 étapes à exécuter depuis Swagger UI (`http://localhost:5000/docs`) :
+
+1. `GET /health` : réponse `200` avec `status: healthy`.
+2. `POST /api/v1/upload` : joindre `data/samples/capteurs_20261119T195745Z.json`, réponse `201` avec `file_id`.
+3. `GET /api/v1/files/{file_id}` : réponse `200`, `status: indexed`, `indexed_count` égal à `logs_count`.
+4. `GET /api/v1/search` avec `log_type=capteurs` et `size=10` : réponse `200` avec des résultats et un `history_id`.
+5. `GET /api/v1/history` : réponse `200` contenant la recherche précédente.
+6. `GET /api/v1/files/not-an-object-id` : réponse `400` au format BNF4.
+7. `POST /api/v1/upload` avec un fichier de 101 Mo : réponse `413` au format BNF4.
+
+Vérification rapide en ligne de commande :
+
+```bash
+python scripts/check_api_contract.py
+curl localhost:5000/docs
+curl localhost:5000/openapi.json
+truncate -s 101M /tmp/capteurs_trop_gros.csv
+curl -F "file=@/tmp/capteurs_trop_gros.csv;filename=capteurs_trop_gros.csv" localhost:5000/api/v1/upload
+```
 
 ## Points à consigner suite à la revue n°1
 
