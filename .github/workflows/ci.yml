@@ -30,6 +30,15 @@ jobs:
           grep -q "pipeline.id: uploads-csv" logstash/config/pipelines.yml
           grep -q "pipeline.id: uploads-json" logstash/config/pipelines.yml
           ! grep -q "^path.config:" logstash/config/logstash.yml
+          test -f app/api/search.py
+          test -f app/services/elasticsearch_search.py
+          test -f app/services/search_history.py
+          test -f app/services/elasticsearch_client.py
+          grep -q 'threshold_breached' elasticsearch/templates/logs-alertes.json
+          grep -q 'threshold_breached' elasticsearch/templates/logs-occupation.json
+          grep -q 'api_v1_search' app/app.py
+          grep -q '@api_v1_search.get("/search")' app/api/search.py
+          grep -q '@api_v1_search.get("/history")' app/api/search.py
       - run: |
           set -euo pipefail
           python scripts/generate_logs.py --sensors 20 --hours 1 --seed 0 --format json --out /tmp/elk-ci-logs

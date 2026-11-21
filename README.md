@@ -114,9 +114,11 @@ curl localhost:5000/
 curl localhost:5000/health
 curl -F "file=@data/samples/capteurs_20261119T195745Z.json" localhost:5000/api/v1/upload
 curl localhost:5000/api/v1/files/<file_id>
+curl --get localhost:5000/api/v1/search --data-urlencode 'q=temperature' --data-urlencode 'log_type=capteurs' --data-urlencode 'size=10'
+curl 'localhost:5000/api/v1/history?page=1&size=10'
 ```
 
-Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log, copie le fichier dans `data/inbox/uploads/` avec le statut `ingesting`, puis un polleur Flask interroge Elasticsearch par `source_file_id` pour passer le document à `indexed` dès que `logs_count` événements sont présents (ELK-21). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées, l'aperçu des 10 premières lignes (ELK-20) et le statut d'indexation.
+Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log, copie le fichier dans `data/inbox/uploads/` avec le statut `ingesting`, puis un polleur Flask interroge Elasticsearch par `source_file_id` pour passer le document à `indexed` dès que `logs_count` événements sont présents (ELK-21). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées, l'aperçu des 10 premières lignes (ELK-20) et le statut d'indexation. Le endpoint `GET /api/v1/search` interroge `sb-logs-*,logs-*` avec `q`, `log_type`, `from`, `to`, `source_file_id`, `severity`, `zone`, `entity_id`, `page`, `size` et `sort` (ELK-23) ; chaque requête est tracée dans la collection Mongo `searches` et consultable via `GET /api/v1/history`.
 
 Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana), `${MONGODB_PORT:-27017}` (MongoDB sur `127.0.0.1` uniquement). Redis et Logstash restent internes au réseau Docker.
 
@@ -155,6 +157,16 @@ curl -s -u elastic:$ELASTIC_PASSWORD -H 'Content-Type: application/json' \
 ```
 
 Pour chaque upload valide, le compteur `sb-logs-*` doit être égal à `logs_count`, `ingest-errors` doit être à 0 et le document Mongo doit passer à `indexed`. Un upload dont une valeur numérique est invalide doit produire un document dans `ingest-errors` et passer le fichier à `failed`.
+
+## Vérification ELK-23
+
+```bash
+curl --get localhost:5000/api/v1/search --data-urlencode 'q=temperature' --data-urlencode 'log_type=capteurs' --data-urlencode 'from=2026-11-21T00:00:00Z' --data-urlencode 'size=10'
+curl --get localhost:5000/api/v1/search --data-urlencode 'source_file_id=20261121T083640Z_56a696014a2c'
+curl 'localhost:5000/api/v1/history?page=1&size=10'
+```
+
+La recherche retourne `results`, `total`, `page`, `size`, `took_ms` et `history_id`. Les filtres `from`/`to` sont inclusifs et acceptent l'ISO-8601 avec `Z`. `size` est plafonné à 100. Chaque recherche valide ajoute un document dans `searches` avec `cache_hit: false` ; l'historique est trié du plus récent au plus ancien et conservé 90 jours par le TTL MongoDB.
 
 ## Points à consigner suite à la revue n°1
 

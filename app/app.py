@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from app.api.files import api_v1
+from app.api.search import api_v1_search
 
 
 def create_app():
@@ -16,6 +17,7 @@ def create_app():
     app.config["INBOX_DIR"] = os.environ.get("INBOX_DIR", "/app/data/inbox/uploads")
 
     app.register_blueprint(api_v1)
+    app.register_blueprint(api_v1_search)
 
     if os.environ.get("ENABLE_STATUS_POLLER", "1") == "1":
         from app.services.ingest_status import start_status_poller

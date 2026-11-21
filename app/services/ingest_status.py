@@ -1,12 +1,10 @@
-import base64
-import json
 import os
 import threading
 import time
 import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 
+from app.services.elasticsearch_client import post_json
 from app.services.mongo import get_files_collection
 
 _started = False
@@ -16,25 +14,9 @@ def _utc_now():
     return datetime.now(timezone.utc)
 
 
-def _post_json(path, body):
-    host = os.environ.get("ELASTICSEARCH_HOST", "http://elasticsearch:9200").rstrip("/")
-    username = os.environ.get("ELASTIC_USERNAME", "elastic")
-    password = os.environ.get("ELASTIC_PASSWORD", "")
-    request = urllib.request.Request(
-        host + path,
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    token = base64.b64encode(("%s:%s" % (username, password)).encode("utf-8"))
-    request.add_header("Authorization", "Basic " + token.decode("ascii"))
-    with urllib.request.urlopen(request, timeout=5) as response:
-        return json.load(response)
-
-
 def _count_documents(index_pattern, source_file_id):
     try:
-        payload = _post_json(
+        payload = post_json(
             "/" + index_pattern + "/_count",
             {"query": {"term": {"source_file_id": source_file_id}}},
         )
@@ -54,7 +36,7 @@ def _count_errors(source_file_id):
 
 
 def _first_index_name(source_file_id, log_type):
-    payload = _post_json(
+    payload = post_json(
         "/sb-logs-*/_search",
         {
             "query": {"term": {"source_file_id": source_file_id}},
