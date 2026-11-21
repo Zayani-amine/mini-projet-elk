@@ -4,15 +4,28 @@ import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
+from apiflask import APIBlueprint
 from bson.errors import InvalidId
 from bson.objectid import ObjectId
-from flask import Blueprint, current_app, jsonify, request
+from flask import current_app, jsonify, request
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from app.api.errors import ERROR_RESPONSE, error_response
+from app.api.schemas import UploadInput
 from app.services.mongo import get_files_collection
 from app.utils.upload_validation import UploadValidationError, validate_upload
 
-api_v1 = Blueprint("api_v1", __name__, url_prefix="/api/v1")
+api_v1 = APIBlueprint(
+    "api_v1",
+    __name__,
+    url_prefix="/api/v1",
+    tag="Fichiers",
+)
+
+SUCCESS_JSON = {
+    "description": "Réponse JSON",
+    "content": {"application/json": {"schema": {"type": "object"}}},
+}
 
 
 def _utc_now():
@@ -64,20 +77,35 @@ def _serialize_file(document):
 
 
 @api_v1.post("/upload")
-def upload_file():
-    uploaded = request.files.get("file")
+@api_v1.input(UploadInput, location="files", validation=False)
+@api_v1.doc(
+    summary="Déposer un fichier de logs",
+    tags=["Fichiers"],
+    description="Valide, stocke et publie un fichier CSV, JSON ou TXT vers Logstash.",
+    responses={
+        201: SUCCESS_JSON,
+        400: ERROR_RESPONSE,
+        409: ERROR_RESPONSE,
+        413: ERROR_RESPONSE,
+        415: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def upload_file(files_data):
+    uploaded = (files_data or {}).get("file") or request.files.get("file")
     if uploaded is None or not uploaded.filename:
-        return jsonify(
-            error="missing_file",
-            message="A multipart field named 'file' is required.",
-        ), 400
+        return error_response(
+            "MISSING_FILE",
+            "A multipart field named 'file' is required.",
+            400,
+        )
 
     content = uploaded.read()
     max_bytes = current_app.config["MAX_UPLOAD_BYTES"]
     try:
         result = validate_upload(uploaded.filename, content, max_bytes)
     except UploadValidationError as exc:
-        return jsonify(error="invalid_upload", message=str(exc)), exc.status_code
+        return error_response("INVALID_UPLOAD", str(exc), exc.status_code)
 
     now = _utc_now()
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
@@ -112,16 +140,18 @@ def upload_file():
         inserted = collection.insert_one(document)
     except DuplicateKeyError:
         staged_path.unlink(missing_ok=True)
-        return jsonify(
-            error="duplicate_file",
-            message="A file with this SHA-256 was already uploaded.",
-        ), 409
+        return error_response(
+            "DUPLICATE_FILE",
+            "A file with this SHA-256 was already uploaded.",
+            409,
+        )
     except PyMongoError as exc:
         staged_path.unlink(missing_ok=True)
-        return jsonify(
-            error="database_unavailable",
-            message="MongoDB is not available: %s" % exc,
-        ), 503
+        return error_response(
+            "DATABASE_UNAVAILABLE",
+            "MongoDB is not available: %s" % exc,
+            503,
+        )
 
     try:
         _publish_to_inbox(stored_name, source_file_id)
@@ -137,10 +167,11 @@ def upload_file():
                 }
             },
         )
-        return jsonify(
-            error="publish_failed",
-            message="The file could not be sent to Logstash: %s" % exc,
-        ), 503
+        return error_response(
+            "PUBLISH_FAILED",
+            "The file could not be sent to Logstash: %s" % exc,
+            503,
+        )
 
     sent_at = _utc_now()
     collection.update_one(
@@ -167,27 +198,41 @@ def upload_file():
 
 
 @api_v1.get("/files/<file_id>")
+@api_v1.doc(
+    summary="Lire le statut et l'aperçu d'un fichier",
+    tags=["Fichiers"],
+    description="Retourne les métadonnées Mongo, le statut d'indexation et les 10 premières lignes.",
+    responses={
+        200: SUCCESS_JSON,
+        400: ERROR_RESPONSE,
+        404: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
 def get_file(file_id):
     try:
         object_id = ObjectId(file_id)
     except InvalidId:
-        return jsonify(
-            error="invalid_file_id",
-            message="The file_id must be a 24-character hexadecimal ObjectId.",
-        ), 400
+        return error_response(
+            "INVALID_FILE_ID",
+            "The file_id must be a 24-character hexadecimal ObjectId.",
+            400,
+        )
 
     try:
         document = get_files_collection().find_one({"_id": object_id})
     except PyMongoError as exc:
-        return jsonify(
-            error="database_unavailable",
-            message="MongoDB is not available: %s" % exc,
-        ), 503
+        return error_response(
+            "DATABASE_UNAVAILABLE",
+            "MongoDB is not available: %s" % exc,
+            503,
+        )
 
     if document is None:
-        return jsonify(
-            error="file_not_found",
-            message="No file found with id %s." % file_id,
-        ), 404
+        return error_response(
+            "FILE_NOT_FOUND",
+            "No file found with id %s." % file_id,
+            404,
+        )
 
     return jsonify(_serialize_file(document)), 200
