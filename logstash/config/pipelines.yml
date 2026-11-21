@@ -3,3 +3,9 @@
 
 - pipeline.id: generated-to-es
   path.config: "/usr/share/logstash/pipeline/05-generated-to-es.conf"
+
+- pipeline.id: uploads-csv
+  path.config: "/usr/share/logstash/pipeline/csv.conf"
+
+- pipeline.id: uploads-json
+  path.config: "/usr/share/logstash/pipeline/json.conf"

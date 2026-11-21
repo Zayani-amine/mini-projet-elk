@@ -1,3 +1,5 @@
+import csv
+import io
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,12 +25,30 @@ def _staging_path(stored_name):
     return directory / stored_name
 
 
-def _publish_to_inbox(stored_name):
+def _published_name(stored_name, source_file_id):
+    if stored_name.lower().endswith(".txt"):
+        return source_file_id + ".csv"
+    return stored_name
+
+
+def _publish_to_inbox(stored_name, source_file_id):
     directory = Path(current_app.config["INBOX_DIR"])
     directory.mkdir(parents=True, exist_ok=True)
-    temporary = directory / (stored_name + ".tmp")
-    final = directory / stored_name
-    shutil.copyfile(_staging_path(stored_name), temporary)
+    published_name = _published_name(stored_name, source_file_id)
+    temporary = directory / (published_name + ".tmp")
+    final = directory / published_name
+    if stored_name.lower().endswith(".txt"):
+        text = _staging_path(stored_name).read_text(encoding="utf-8-sig")
+        reader = csv.DictReader(io.StringIO(text), delimiter="|")
+        if not reader.fieldnames:
+            raise ValueError("Missing header row in TXT upload")
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=reader.fieldnames, delimiter=",")
+        writer.writeheader()
+        writer.writerows(reader)
+        temporary.write_text(output.getvalue(), encoding="utf-8")
+    else:
+        shutil.copyfile(_staging_path(stored_name), temporary)
     temporary.replace(final)
     return final
 
@@ -63,6 +83,7 @@ def upload_file():
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     stored_name = "%s_%s.%s" % (stamp, result["sha256"][:12], result["format"])
     source_file_id = Path(stored_name).stem
+    published_name = _published_name(stored_name, source_file_id)
     staged_path = _staging_path(stored_name)
     staged_path.write_bytes(content)
 
@@ -71,7 +92,7 @@ def upload_file():
         "original_name": uploaded.filename,
         "stored_name": stored_name,
         "source_file_id": source_file_id,
-        "upload_path": "uploads/" + stored_name,
+        "upload_path": "uploads/" + published_name,
         "log_type": result["log_type"],
         "format": result["format"],
         "size_bytes": result["size_bytes"],
@@ -103,8 +124,8 @@ def upload_file():
         ), 503
 
     try:
-        _publish_to_inbox(stored_name)
-    except OSError as exc:
+        _publish_to_inbox(stored_name, source_file_id)
+    except (OSError, ValueError, UnicodeDecodeError, csv.Error) as exc:
         failed_at = _utc_now()
         collection.update_one(
             {"_id": inserted.inserted_id},
@@ -132,7 +153,7 @@ def upload_file():
         original_name=uploaded.filename,
         stored_name=stored_name,
         source_file_id=source_file_id,
-        upload_path="uploads/" + stored_name,
+        upload_path="uploads/" + published_name,
         log_type=result["log_type"],
         format=result["format"],
         size_bytes=result["size_bytes"],
