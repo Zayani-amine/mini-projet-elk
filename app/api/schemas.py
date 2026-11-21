@@ -9,23 +9,33 @@ LOG_TYPE_VALUES = sorted(LOG_TYPES)
 class UploadInput(Schema):
     file = fields.File(
         required=True,
-        metadata={"description": "Fichier CSV, JSON ou TXT (100 Mo maximum)"},
+        metadata={"description": "Fichier .csv, .json ou .txt uniquement (100 Mo maximum)"},
     )
 
 
 class SearchQuery(Schema):
-    q = fields.String(metadata={"description": "Recherche plein texte sur les champs mappés"})
+    q = fields.String(
+        metadata={
+            "description": "Recherche plein texte tolérant aux fautes (ex: temperatur trouve temperature)"
+        }
+    )
     log_type = fields.String(
         validate=OneOf(LOG_TYPE_VALUES),
         metadata={"description": "Type de log"},
     )
     date_from = fields.String(
         data_key="from",
-        metadata={"description": "Date ISO-8601 minimale, inclusive"},
+        metadata={
+            "format": "date-time",
+            "description": "Date ISO-8601 minimale, inclusive",
+        },
     )
     date_to = fields.String(
         data_key="to",
-        metadata={"description": "Date ISO-8601 maximale, inclusive"},
+        metadata={
+            "format": "date-time",
+            "description": "Date ISO-8601 maximale, inclusive",
+        },
     )
     source_file_id = fields.String(metadata={"description": "Identifiant du fichier source"})
     severity = fields.String(metadata={"description": "Sévérité d'une alerte"})

@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -5,6 +6,7 @@ os.environ["ENABLE_STATUS_POLLER"] = "0"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.app import create_app
+from app.services.elasticsearch_search import build_query
 
 app = create_app()
 required = {
@@ -55,5 +57,39 @@ for path in ("/docs", "/openapi.json"):
 schema = app.config["HTTP_ERROR_SCHEMA"]
 if set(schema["properties"]) != {"error"}:
     raise SystemExit("Unexpected error schema")
+
+fuzzy_query = build_query(
+    {
+        "q": "temperatur",
+        "log_type": None,
+        "source_file_id": None,
+        "severity": None,
+        "zone": None,
+        "entity_id": None,
+        "date_from": None,
+        "date_to": None,
+    }
+)
+if '"fuzziness": "AUTO"' not in json.dumps(fuzzy_query):
+    raise SystemExit("Search query is not fuzzy")
+
+search_parameters = app.spec["paths"]["/api/v1/search"]["get"]["parameters"]
+date_formats = {
+    parameter["name"]: parameter["schema"].get("format")
+    for parameter in search_parameters
+    if parameter["name"] in ("from", "to")
+}
+if date_formats != {"from": "date-time", "to": "date-time"}:
+    raise SystemExit("Search dates are not documented as date-time: %s" % date_formats)
+
+file_description = app.spec["components"]["schemas"]["UploadInput"]["properties"]["file"][
+    "description"
+]
+if ".csv" not in file_description or ".json" not in file_description or ".txt" not in file_description:
+    raise SystemExit("Upload file description does not list allowed extensions")
+
+swagger_config = app.config["SWAGGER_UI_CONFIG"]["onComplete"]
+if ".csv" not in swagger_config or "accept" not in swagger_config:
+    raise SystemExit("Swagger UI upload filter is missing")
 
 print("API_CONTRACT_OK paths=%d" % len(paths))

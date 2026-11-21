@@ -5,9 +5,21 @@ from app.services.elasticsearch_client import ElasticsearchError, post_json
 from app.utils.upload_validation import LOG_TYPES
 
 SEARCH_INDEX_PATTERN = os.environ.get("SEARCH_INDEX_PATTERN", "sb-logs-*,logs-*")
-SEARCH_FIELDS = [
-    "entity_id^3",
-    "message.keyword^2",
+SEARCH_FIELDS_EXACT = [
+    "entity_id^5",
+    "message.keyword^4",
+    "message^3",
+    "zone^2",
+    "measure^2",
+    "status^2",
+    "severity^2",
+    "rule^2",
+    "equipment_type^2",
+    "energy_type^2",
+]
+SEARCH_FIELDS_FUZZY = [
+    "message^3",
+    "entity_id^2",
     "zone",
     "measure",
     "status",
@@ -92,18 +104,33 @@ def parse_search_params(args):
 
 
 def build_query(params):
-    must = []
+    should = []
     filters = []
     if params["q"]:
-        must.append(
-            {
-                "multi_match": {
-                    "query": params["q"],
-                    "fields": SEARCH_FIELDS,
-                    "type": "best_fields",
-                    "operator": "and",
-                }
-            }
+        should.extend(
+            [
+                {
+                    "multi_match": {
+                        "query": params["q"],
+                        "fields": SEARCH_FIELDS_EXACT,
+                        "type": "best_fields",
+                        "operator": "and",
+                        "boost": 3,
+                    }
+                },
+                {
+                    "multi_match": {
+                        "query": params["q"],
+                        "fields": SEARCH_FIELDS_FUZZY,
+                        "type": "best_fields",
+                        "operator": "or",
+                        "fuzziness": "AUTO",
+                        "prefix_length": 1,
+                        "max_expansions": 50,
+                        "boost": 1,
+                    }
+                },
+            ]
         )
 
     for key, field in (
@@ -124,8 +151,12 @@ def build_query(params):
             bounds["lte"] = params["date_to"].isoformat()
         filters.append({"range": {"@timestamp": bounds}})
 
-    if must or filters:
-        return {"bool": {"must": must, "filter": filters}}
+    if should or filters:
+        query = {"bool": {"filter": filters}}
+        if should:
+            query["bool"]["should"] = should
+            query["bool"]["minimum_should_match"] = 1
+        return query
     return {"match_all": {}}
 
 

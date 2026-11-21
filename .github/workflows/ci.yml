@@ -41,6 +41,9 @@ jobs:
           grep -q 'APIFlask' app/app.py
           grep -q 'VALIDATION_ERROR_STATUS_CODE' app/app.py
           grep -q 'ERROR_SCHEMA' app/app.py
+          grep -q 'fuzziness' app/services/elasticsearch_search.py
+          grep -q 'date-time' app/api/schemas.py
+          grep -q 'SWAGGER_UI_CONFIG' app/app.py
           grep -q 'threshold_breached' elasticsearch/templates/logs-alertes.json
           grep -q 'threshold_breached' elasticsearch/templates/logs-occupation.json
           grep -q 'api_v1_search' app/app.py

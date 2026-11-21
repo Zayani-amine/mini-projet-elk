@@ -17,6 +17,17 @@ JSON_RESPONSE = {
     "description": "Réponse JSON",
     "content": {"application/json": {"schema": {"type": "object"}}},
 }
+SWAGGER_UPLOAD_ACCEPT = """
+() => {
+  const apply = () => {
+    document.querySelectorAll('input[type="file"]').forEach((input) => {
+      input.setAttribute('accept', '.csv,.json,.txt,text/csv,application/json,text/plain');
+    });
+  };
+  apply();
+  new MutationObserver(apply).observe(document.body, {childList: true, subtree: true});
+}
+"""
 
 
 def create_app():
@@ -31,6 +42,7 @@ def create_app():
     app.config["VALIDATION_ERROR_STATUS_CODE"] = 400
     app.config["HTTP_ERROR_SCHEMA"] = ERROR_SCHEMA
     app.config["VALIDATION_ERROR_SCHEMA"] = ERROR_SCHEMA
+    app.config["SWAGGER_UI_CONFIG"] = {"onComplete": SWAGGER_UPLOAD_ACCEPT}
     app.tags = [
         {"name": "Système", "description": "Contrôles de disponibilité du service"},
         {"name": "Fichiers", "description": "Upload, suivi et aperçu des fichiers"},
