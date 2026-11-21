@@ -48,6 +48,9 @@
         "threshold": {
           "type": "float"
         },
+        "threshold_breached": {
+          "type": "boolean"
+        },
         "message": {
           "type": "text",
           "fields": {
