@@ -1,6 +1,6 @@
 {
   "index_patterns": [
-    "logs-occupation"
+    "sb-logs-occupation-*"
   ],
   "priority": 200,
   "version": 1,

@@ -51,10 +51,10 @@ docker-compose.yml      6 services du socle (ELK-14)
 Dockerfile              image Flask python:3.11-slim (ELK-15)
 requirements.txt        dépendances Python minimales (ELK-15)
 elasticsearch/
-  load_templates.sh     chargement des 5 index templates
-  templates/            logs-{capteurs,alertes,maintenance,energie,occupation}.json
+  load_templates.sh     chargement des 6 index templates
+  templates/            sb-logs-{capteurs,alertes,maintenance,energie,occupation}-*.json et ingest-errors.json
 logstash/
-  pipeline/             00-bootstrap.conf (ELK-14) ; 05-generated-to-es.conf (ELK-17) ; csv.conf et json.conf (ELK-22)
+  pipeline/             00-bootstrap.conf (ELK-14) ; 05-generated-to-es.conf (ELK-17) ; csv.conf et json.conf (ELK-22) ; TXT converti en CSV avant dépôt
   config/               logstash.yml et pipelines.yml (ELK-14)
 mongodb/
   init_mongo.js         base elk_logs : files, searches, thresholds
@@ -125,7 +125,7 @@ Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana), `${MON
 - MongoDB Compass : `mongodb://admin:<MONGO_INITDB_ROOT_PASSWORD>@localhost:${MONGODB_PORT:-27017}/?authSource=admin`, puis base `elk_logs`, collection `files`. Le mot de passe est celui de `.env` ; ne pas le versionner.
 - API Logstash (interne) : `http://elk-logstash:9600/_node/pipelines`
 
-Le pipeline `main` charge `00-bootstrap.conf` (fichiers déposés dans `data/inbox/*.json`, affichés en stdout), `05-generated-to-es.conf` (JSONL de `data/inbox/generated/`) et `06-uploads-to-es.conf` (JSON/CSV/TXT uploadés dans `data/inbox/uploads/`, indexés dans `logs-<type>` avec `source_file_id`). `pipeline.workers: 1` est requis pour l'auto-détection des en-têtes CSV/TXT. Les templates sont chargés avec `elasticsearch/load_templates.sh` et la data view `logs-*` avec `kibana/setup_data_view.sh`. Les noms `logs-<type>` évitent le template de data stream intégré `logs-*-*` d'Elasticsearch 8. La gestion des erreurs et le marquage des seuils arrivent en ELK-22.
+Logstash utilise `pipelines.yml` avec quatre pipelines : `bootstrap` (`data/inbox/*.json`, stdout), `generated-to-es` (`data/inbox/generated/*.json`), `uploads-csv` (`data/inbox/uploads/*.csv`) et `uploads-json` (`data/inbox/uploads/*.json`). `06-uploads-to-es.conf` a été supprimé. Les uploads TXT sont convertis en CSV par Flask avant dépôt dans l'inbox, donc aucun fichier n'est ingéré deux fois. `pipeline.workers: 1` reste requis pour l'auto-détection des en-têtes CSV. Les uploads sont indexés dans `sb-logs-<type>-YYYY.MM` (préfixe `sb-logs` pour éviter le template de data stream intégré `logs-*-*` d'Elasticsearch 8) avec `source_file_id`. Les événements invalides sont tagués et envoyés dans `ingest-errors` ; le polleur Flask passe alors le fichier Mongo au statut `failed`. Le marquage des seuils est recalculé si le booléen est absent ou invalide : température > 26, humidité > 65, CO2 > 1000, alertes value > threshold, énergie quantity > 100, maintenance wear_level > 75, occupation occupancy_rate > 80. Les data views `logs-*` et `sb-logs-*` sont créées par `kibana/setup_data_view.sh`.
 
 ## Schémas de données (S2)
 
@@ -137,13 +137,27 @@ Chargement manuel des templates (une fois la stack démarrée) :
 export ELASTIC_PASSWORD=...
 bash elasticsearch/load_templates.sh
 bash kibana/setup_data_view.sh
-mongosh "mongodb://admin:PASSWORD@localhost:27017/?authSource=admin" mongodb/init_mongo.js
+mongosh "mongodb://admin:PASSWORD@localhost:${MONGODB_PORT:-27017}/?authSource=admin" mongodb/init_mongo.js
 ```
 
-Les templates utilisent une priorité 200, 1 shard, 0 réplica et un rafraîchissement à 1 s.
+Les six templates utilisent une priorité 200, 1 shard, 0 réplica et un rafraîchissement à 1 s.
+
+## Vérification ELK-22
+
+```bash
+curl -s -u elastic:$ELASTIC_PASSWORD localhost:9200/_cat/indices/sb-logs-*,ingest-errors?v
+curl -s -u elastic:$ELASTIC_PASSWORD -H 'Content-Type: application/json' \
+  -X POST localhost:9200/sb-logs-*/_count \
+  -d '{"query":{"term":{"source_file_id":"<SOURCE_FILE_ID>"}}}'
+curl -s -u elastic:$ELASTIC_PASSWORD -H 'Content-Type: application/json' \
+  -X POST localhost:9200/ingest-errors/_count \
+  -d '{"query":{"term":{"source_file_id":"<SOURCE_FILE_ID>"}}}'
+```
+
+Pour chaque upload valide, le compteur `sb-logs-*` doit être égal à `logs_count`, `ingest-errors` doit être à 0 et le document Mongo doit passer à `indexed`. Un upload dont une valeur numérique est invalide doit produire un document dans `ingest-errors` et passer le fichier à `failed`.
 
 ## Points à consigner suite à la revue n°1
 
 - Port de l'application web : 5000 dans le livrable d'architecture, 8000 dans le sujet. Valeur actuelle : 5000.
 - Version ELK figée à 8.17.0 : le layer de l'image 8.19.0 est corrompu dans le cache Docker local.
-- Durées de vie Redis (60 s / 10 s / 300 s) et valeurs de seuils à confirmer avec l'encadrant.
+- Durées de vie Redis (60 s / 10 s / 300 s) à confirmer avec l'encadrant ; seuils ELK-22 fixés dans le pipeline Logstash.

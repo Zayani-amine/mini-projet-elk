@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
@@ -15,22 +16,56 @@ def _utc_now():
     return datetime.now(timezone.utc)
 
 
-def _count_indexed_documents(source_file_id):
+def _post_json(path, body):
     host = os.environ.get("ELASTICSEARCH_HOST", "http://elasticsearch:9200").rstrip("/")
     username = os.environ.get("ELASTIC_USERNAME", "elastic")
     password = os.environ.get("ELASTIC_PASSWORD", "")
-    body = json.dumps({"query": {"term": {"source_file_id": source_file_id}}}).encode("utf-8")
     request = urllib.request.Request(
-        host + "/logs-*/_count",
-        data=body,
+        host + path,
+        data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
     token = base64.b64encode(("%s:%s" % (username, password)).encode("utf-8"))
     request.add_header("Authorization", "Basic " + token.decode("ascii"))
     with urllib.request.urlopen(request, timeout=5) as response:
-        payload = json.load(response)
+        return json.load(response)
+
+
+def _count_documents(index_pattern, source_file_id):
+    try:
+        payload = _post_json(
+            "/" + index_pattern + "/_count",
+            {"query": {"term": {"source_file_id": source_file_id}}},
+        )
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return 0
+        raise
     return int(payload.get("count", 0))
+
+
+def _count_indexed_documents(source_file_id):
+    return _count_documents("sb-logs-*", source_file_id)
+
+
+def _count_errors(source_file_id):
+    return _count_documents("ingest-errors", source_file_id)
+
+
+def _first_index_name(source_file_id, log_type):
+    payload = _post_json(
+        "/sb-logs-*/_search",
+        {
+            "query": {"term": {"source_file_id": source_file_id}},
+            "size": 1,
+            "_source": False,
+        },
+    )
+    hits = payload.get("hits", {}).get("hits", [])
+    if hits:
+        return hits[0].get("_index")
+    return "sb-logs-%s-%s" % (log_type, _utc_now().strftime("%Y.%m"))
 
 
 def _poll_once():
@@ -49,17 +84,35 @@ def _poll_once():
             continue
         try:
             indexed = _count_indexed_documents(document["source_file_id"])
+            errors = _count_errors(document["source_file_id"])
         except Exception:
             continue
+
+        now = _utc_now()
+        if errors > 0:
+            collection.update_one(
+                {"_id": document["_id"]},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "es_index": "ingest-errors",
+                        "error_message": "Ingest failed: %d error document(s) in ingest-errors" % errors,
+                        "indexed_count": indexed,
+                        "updated_at": now,
+                    }
+                },
+            )
+            continue
+
         if indexed < expected:
             continue
-        now = _utc_now()
+
         collection.update_one(
             {"_id": document["_id"]},
             {
                 "$set": {
                     "status": "indexed",
-                    "es_index": "logs-%s" % document["log_type"],
+                    "es_index": _first_index_name(document["source_file_id"], document["log_type"]),
                     "indexed_at": now,
                     "indexed_count": indexed,
                     "updated_at": now,

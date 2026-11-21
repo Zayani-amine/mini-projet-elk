@@ -24,6 +24,14 @@ jobs:
       - run: bash -n scripts/deploy.sh
       - run: |
           set -euo pipefail
+          test -f logstash/pipeline/csv.conf
+          test -f logstash/pipeline/json.conf
+          test ! -f logstash/pipeline/06-uploads-to-es.conf
+          grep -q "pipeline.id: uploads-csv" logstash/config/pipelines.yml
+          grep -q "pipeline.id: uploads-json" logstash/config/pipelines.yml
+          ! grep -q "^path.config:" logstash/config/logstash.yml
+      - run: |
+          set -euo pipefail
           python scripts/generate_logs.py --sensors 20 --hours 1 --seed 0 --format json --out /tmp/elk-ci-logs
           test "$(find /tmp/elk-ci-logs -name '*.json' | wc -l)" -eq 5
 

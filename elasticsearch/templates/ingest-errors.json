@@ -1,0 +1,57 @@
+{
+  "index_patterns": [
+    "ingest-errors"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "ELK-22 : erreurs de parsing et d'indexation des uploads"
+  },
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "1s"
+      }
+    },
+    "mappings": {
+      "dynamic": false,
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "source_file_id": {
+          "type": "keyword"
+        },
+        "source_format": {
+          "type": "keyword"
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "error_type": {
+          "type": "keyword"
+        },
+        "error_message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "raw_message": {
+          "type": "text"
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "ingested_at": {
+          "type": "date"
+        }
+      }
+    }
+  }
+}

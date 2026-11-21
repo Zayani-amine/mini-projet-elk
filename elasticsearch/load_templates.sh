@@ -9,7 +9,7 @@ ES_USER="${ES_USER:-elastic}"
 : "${ELASTIC_PASSWORD:?Définir ELASTIC_PASSWORD (voir .env)}"
 DIR="$(cd "$(dirname "$0")" && pwd)/templates"
 
-for f in "$DIR"/logs-*.json; do
+for f in "$DIR"/*.json; do
   name="$(basename "$f" .json)"
   echo "PUT _index_template/$name"
   # shellcheck disable=SC2086
