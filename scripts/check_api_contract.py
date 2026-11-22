@@ -53,6 +53,10 @@ for path in ("/docs", "/openapi.json"):
     response = client.get(path)
     if response.status_code != 200:
         raise SystemExit("%s returned %s" % (path, response.status_code))
+    if "no-store" not in response.headers.get("Cache-Control", ""):
+        raise SystemExit("%s is cacheable" % path)
+
+docs_html = client.get("/docs").get_data(as_text=True)
 
 schema = app.config["HTTP_ERROR_SCHEMA"]
 if set(schema["properties"]) != {"error"}:
@@ -82,6 +86,11 @@ date_formats = {
 if date_formats != {"from": "date-time", "to": "date-time"}:
     raise SystemExit("Search dates are not documented as date-time: %s" % date_formats)
 
+q_parameter = next(parameter for parameter in search_parameters if parameter["name"] == "q")
+q_example = q_parameter.get("example") or q_parameter.get("schema", {}).get("example")
+if q_example != "temperatur":
+    raise SystemExit("Search query example is missing: %s" % q_example)
+
 file_description = app.spec["components"]["schemas"]["UploadInput"]["properties"]["file"][
     "description"
 ]
@@ -89,7 +98,11 @@ if ".csv" not in file_description or ".json" not in file_description or ".txt" n
     raise SystemExit("Upload file description does not list allowed extensions")
 
 swagger_config = app.config["SWAGGER_UI_CONFIG"]["onComplete"]
-if ".csv" not in swagger_config or "accept" not in swagger_config:
-    raise SystemExit("Swagger UI upload filter is missing")
+for marker in ("showOpenFilePicker", "excludeAcceptAllOption", "datetime-local", "elk-docs-banner"):
+    if marker not in swagger_config:
+        raise SystemExit("Swagger UI enhancement is missing: %s" % marker)
+for marker in ("showOpenFilePicker", "excludeAcceptAllOption", "elk-upload-button", "elk-docs-banner"):
+    if marker not in docs_html:
+        raise SystemExit("Served Swagger UI is missing: %s" % marker)
 
 print("API_CONTRACT_OK paths=%d" % len(paths))
