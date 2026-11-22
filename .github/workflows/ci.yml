@@ -44,6 +44,11 @@ jobs:
           grep -q 'fuzziness' app/services/elasticsearch_search.py
           grep -q 'date-time' app/api/schemas.py
           grep -q 'SWAGGER_UI_CONFIG' app/app.py
+          grep -q 'showOpenFilePicker' app/app.py
+          grep -q 'excludeAcceptAllOption' app/app.py
+          grep -q 'datetime-local' app/app.py
+          grep -q 'no-store' app/app.py
+          grep -q '"example": "temperatur"' app/api/schemas.py
           grep -q 'threshold_breached' elasticsearch/templates/logs-alertes.json
           grep -q 'threshold_breached' elasticsearch/templates/logs-occupation.json
           grep -q 'api_v1_search' app/app.py

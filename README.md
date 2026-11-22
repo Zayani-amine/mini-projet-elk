@@ -171,26 +171,29 @@ curl --get localhost:5000/api/v1/search --data-urlencode 'q=temperatur' --data-u
 curl 'localhost:5000/api/v1/history?page=1&size=10'
 ```
 
-La recherche retourne `results`, `total`, `page`, `size`, `took_ms` et `history_id`. Le paramètre `q` est tolérant aux fautes de frappe (`temperatur` trouve `temperature`) : les correspondances exactes restent prioritaires, puis une requête floue `fuzziness: AUTO` est appliquée. Les filtres `from`/`to` restent inclusifs, acceptent l'ISO-8601 avec `Z` et disposent d'un sélecteur de date/heure dans Swagger UI. `size` est plafonné à 100. Chaque recherche valide ajoute un document dans `searches` avec `cache_hit: false` ; l'historique est trié du plus récent au plus ancien et conservé 90 jours par le TTL MongoDB.
+La recherche retourne `results`, `total`, `page`, `size`, `took_ms` et `history_id`. Le paramètre `q` est tolérant aux fautes de frappe (`temperatur` trouve `temperature`) et propose cet exemple dans Swagger UI : les correspondances exactes restent prioritaires, puis une requête floue `fuzziness: AUTO` est appliquée. Les filtres `from`/`to` restent inclusifs, acceptent l'ISO-8601 avec `Z` et sont saisis avec un calendrier `datetime-local` dans Swagger UI, converti en UTC avant envoi. `size` est plafonné à 100. Chaque recherche valide ajoute un document dans `searches` avec `cache_hit: false` ; l'historique est trié du plus récent au plus ancien et conservé 90 jours par le TTL MongoDB.
 
 ## Vérification ELK-24
 
 Les 7 étapes à exécuter depuis Swagger UI (`http://localhost:5000/docs`) :
 
 1. `GET /health` : réponse `200` avec `status: healthy`.
-2. `POST /api/v1/upload` : joindre `data/samples/capteurs_20261119T195745Z.json`, réponse `201` avec `file_id`. Le sélecteur de fichier Swagger est filtré sur `.csv`, `.json` et `.txt` ; tout autre format est rejeté par l'API avec un `415` JSON normalisé.
+2. `POST /api/v1/upload` : cliquer sur `Choisir un fichier .csv/.json/.txt`, sélectionner `data/samples/capteurs_20261119T195745Z.json`, puis envoyer ; réponse `201` avec `file_id`. Sous Chrome/Edge, le sélecteur utilise `showOpenFilePicker` avec `excludeAcceptAllOption: true` : l'option `Tous les fichiers` n'apparaît pas et seuls `.csv`, `.json`, `.txt` sont proposés. Dans les autres navigateurs, le champ natif reste filtré et tout autre format est rejeté avant envoi puis par l'API avec un `415` JSON normalisé.
 3. `GET /api/v1/files/{file_id}` : réponse `200`, `status: indexed`, `indexed_count` égal à `logs_count`.
 4. `GET /api/v1/search` avec `log_type=capteurs` et `size=10` : réponse `200` avec des résultats et un `history_id`.
 5. `GET /api/v1/history` : réponse `200` contenant la recherche précédente.
 6. `GET /api/v1/files/not-an-object-id` : réponse `400` au format BNF4.
 7. `POST /api/v1/upload` avec un fichier de 101 Mo : réponse `413` au format BNF4.
 
+La page Swagger doit afficher la bannière verte `ELK API v1.1.0` ; si l'ancienne page reste affichée, ouvrir `http://localhost:5000/docs?v=4` ou vider le cache du navigateur. Les réponses `/docs` et `/openapi.json` sont désormais envoyées avec `Cache-Control: no-store`.
+
 Vérification rapide en ligne de commande :
 
 ```bash
 python scripts/check_api_contract.py
-curl localhost:5000/docs
+curl 'localhost:5000/docs?v=4'
 curl localhost:5000/openapi.json
+curl -I localhost:5000/docs
 truncate -s 101M /tmp/capteurs_trop_gros.csv
 curl -F "file=@/tmp/capteurs_trop_gros.csv;filename=capteurs_trop_gros.csv" localhost:5000/api/v1/upload
 curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/upload

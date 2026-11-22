@@ -1,6 +1,7 @@
 import os
 
 from apiflask import APIFlask
+from flask import request
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from app.api.errors import (
@@ -17,15 +18,155 @@ JSON_RESPONSE = {
     "description": "Réponse JSON",
     "content": {"application/json": {"schema": {"type": "object"}}},
 }
-SWAGGER_UPLOAD_ACCEPT = """
+SWAGGER_UI_ENHANCEMENTS = """
 () => {
-  const apply = () => {
-    document.querySelectorAll('input[type="file"]').forEach((input) => {
-      input.setAttribute('accept', '.csv,.json,.txt,text/csv,application/json,text/plain');
+  const allowedExtensions = ['csv', 'json', 'txt'];
+
+  const showError = (input, message) => {
+    let error = input.parentElement.querySelector('.elk-file-error');
+    if (!error) {
+      error = document.createElement('div');
+      error.className = 'elk-file-error';
+      error.style.cssText = 'color:#b00020;font-size:12px;margin-top:6px;font-weight:600;';
+      input.parentElement.appendChild(error);
+    }
+    error.textContent = message;
+  };
+
+  const clearError = (input) => {
+    const error = input.parentElement.querySelector('.elk-file-error');
+    if (error) error.remove();
+  };
+
+  const pickFile = async (input, label) => {
+    if (!window.showOpenFilePicker) {
+      input.click();
+      return;
+    }
+    try {
+      const handles = await window.showOpenFilePicker({
+        types: [{
+          description: 'Logs .csv .json .txt',
+          accept: {
+            'text/csv': ['.csv'],
+            'application/json': ['.json'],
+            'text/plain': ['.txt']
+          }
+        }],
+        excludeAcceptAllOption: true,
+        multiple: false
+      });
+      const file = await handles[0].getFile();
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      label.textContent = file.name;
+      clearError(input);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (error) {
+      if (error && error.name === 'AbortError') return;
+      showError(input, 'Sélection impossible dans ce navigateur.');
+    }
+  };
+
+  const enhanceFileInput = (input) => {
+    if (input.dataset.elkEnhanced === '1') return;
+    input.dataset.elkEnhanced = '1';
+    input.setAttribute('accept', '.csv,.json,.txt');
+    input.style.display = 'none';
+
+    const name = document.createElement('span');
+    name.className = 'elk-file-name';
+    name.style.cssText = 'display:inline-block;margin-left:8px;font-size:13px;';
+    name.textContent = 'Aucun fichier sélectionné';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'elk-upload-button';
+    button.textContent = 'Choisir un fichier .csv/.json/.txt';
+    button.style.cssText = 'padding:7px 12px;border:1px solid #4990e2;border-radius:4px;background:#e8f2ff;color:#174a7e;cursor:pointer;font-weight:600;';
+    button.addEventListener('click', () => pickFile(input, name));
+
+    const hint = document.createElement('div');
+    hint.className = 'elk-file-hint';
+    hint.style.cssText = 'color:#666;font-size:12px;margin-top:4px;';
+    hint.textContent = 'Seuls .csv, .json et .txt sont acceptés.';
+
+    input.parentElement.insertBefore(button, input);
+    input.parentElement.insertBefore(name, input.nextSibling);
+    input.parentElement.appendChild(hint);
+
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (!file) {
+        name.textContent = 'Aucun fichier sélectionné';
+        return;
+      }
+      const extension = file.name.split('.').pop().toLowerCase();
+      if (allowedExtensions.indexOf(extension) === -1) {
+        showError(input, 'Formats autorisés : .csv, .json, .txt');
+        input.value = '';
+        name.textContent = 'Aucun fichier sélectionné';
+        return;
+      }
+      clearError(input);
+      name.textContent = file.name;
     });
   };
+
+  const toLocalValue = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (number) => String(number).padStart(2, '0');
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + 'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+  };
+
+  const enhanceDateInput = (input) => {
+    if (input.dataset.elkDateEnhanced === '1') return;
+    const row = input.closest('.parameter') || input.parentElement;
+    if (!row) return;
+    const nameElement = row.querySelector('.parameter-name');
+    const name = nameElement ? nameElement.textContent.trim() : '';
+    if (name !== 'from' && name !== 'to') return;
+    input.dataset.elkDateEnhanced = '1';
+    input.style.display = 'none';
+
+    const calendar = document.createElement('input');
+    calendar.type = 'datetime-local';
+    calendar.className = 'elk-datetime-input';
+    calendar.style.cssText = 'padding:6px;border:1px solid #ccc;border-radius:4px;';
+    calendar.value = toLocalValue(input.value);
+    input.parentElement.insertBefore(calendar, input.nextSibling);
+
+    calendar.addEventListener('change', () => {
+      const iso = calendar.value ? new Date(calendar.value).toISOString() : '';
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, iso);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  };
+
+  const addBanner = () => {
+    const info = document.querySelector('.swagger-ui .info');
+    if (!info || document.querySelector('.elk-docs-banner')) return;
+    const banner = document.createElement('div');
+    banner.className = 'elk-docs-banner';
+    banner.style.cssText = 'margin-bottom:14px;padding:10px 12px;border-left:4px solid #2e7d32;background:#e8f5e9;color:#1b5e20;font-weight:600;';
+    banner.textContent = 'ELK API v1.1.0 — recherche floue, dates calendrier, upload .csv/.json/.txt sans option « Tous les fichiers » sous Chrome/Edge.';
+    info.prepend(banner);
+  };
+
+  const apply = () => {
+    addBanner();
+    document.querySelectorAll('input[type="file"]').forEach(enhanceFileInput);
+    document.querySelectorAll('input[type="text"]').forEach(enhanceDateInput);
+  };
+
   apply();
-  new MutationObserver(apply).observe(document.body, {childList: true, subtree: true});
+  new MutationObserver(apply).observe(document.body, { childList: true, subtree: true });
 }
 """
 
@@ -34,7 +175,7 @@ def create_app():
     app = APIFlask(
         __name__,
         title="Smart Building IoT API",
-        version="1.0.0",
+        version="1.1.0",
     )
     app.config["DESCRIPTION"] = (
         "API d'upload, de suivi, de recherche et d'historique du projet ELK."
@@ -42,7 +183,7 @@ def create_app():
     app.config["VALIDATION_ERROR_STATUS_CODE"] = 400
     app.config["HTTP_ERROR_SCHEMA"] = ERROR_SCHEMA
     app.config["VALIDATION_ERROR_SCHEMA"] = ERROR_SCHEMA
-    app.config["SWAGGER_UI_CONFIG"] = {"onComplete": SWAGGER_UPLOAD_ACCEPT}
+    app.config["SWAGGER_UI_CONFIG"] = {"onComplete": SWAGGER_UI_ENHANCEMENTS}
     app.tags = [
         {"name": "Système", "description": "Contrôles de disponibilité du service"},
         {"name": "Fichiers", "description": "Upload, suivi et aperçu des fichiers"},
@@ -57,6 +198,14 @@ def create_app():
 
     app.register_blueprint(api_v1)
     app.register_blueprint(api_v1_search)
+
+    @app.after_request
+    def disable_docs_cache(response):
+        if request.path in ("/docs", "/openapi.json"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.error_processor
     def api_error_processor(error):

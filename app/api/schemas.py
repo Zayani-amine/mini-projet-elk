@@ -16,7 +16,8 @@ class UploadInput(Schema):
 class SearchQuery(Schema):
     q = fields.String(
         metadata={
-            "description": "Recherche plein texte tolérant aux fautes (ex: temperatur trouve temperature)"
+            "description": "Recherche plein texte tolérant aux fautes (ex: temperatur trouve temperature)",
+            "example": "temperatur",
         }
     )
     log_type = fields.String(
