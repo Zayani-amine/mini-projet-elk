@@ -19,7 +19,7 @@ LAYOUT_JSON = [
 VISUALIZATIONS = {
     "smart-building-temperature-zone-heure": "Température moyenne · 7 j (°C)",
     "smart-building-alertes-critiques-jour": "Alertes critiques · 24 h",
-    "smart-building-energie-temps-reel": "Consommation d'énergie (kWh) · 1 min",
+    "smart-building-energie-temps-reel": "Consommation d'énergie (kWh) · 7 j",
     "smart-building-occupation-7d": "Occupation moyenne par salle · 7 j (%)",
     "smart-building-maintenance-future": "Prévisions de maintenance à venir",
 }
@@ -114,14 +114,18 @@ def check_visualization_semantics(objects):
     search, filters, state = check_visualization(by_id["smart-building-energie-temps-reel"])
     vis_dump = json.dumps(state, ensure_ascii=False)
     filter_dump = json.dumps(filters, ensure_ascii=False)
-    for marker in ('"field": "quantity"', '"type": "sum"', '"interval": "1m"'):
+    for marker in ('"field": "quantity"', '"type": "sum"', '"interval": "1h"', '"min_doc_count": 0'):
         if marker not in vis_dump:
             fail("Energy visualization is missing marker: %s" % marker)
-    for marker in ("kWh", "quantity", "now-1m"):
+    for marker in ("kWh", "quantity"):
         if marker not in filter_dump:
             fail("Energy visualization filter is missing marker: %s" % marker)
     if '"query": "m3"' in filter_dump or "water" in filter_dump:
         fail("Energy visualization must exclude water")
+    if '"interval": "1m"' in vis_dump:
+        fail("Energy visualization must not use 1-minute buckets")
+    if "now-1m" in filter_dump or '"key": "@timestamp"' in filter_dump:
+        fail("Energy visualization must follow the dashboard time range")
 
     search, filters, state = check_visualization(by_id["smart-building-occupation-7d"])
     vis_dump = json.dumps(state, ensure_ascii=False)
@@ -184,12 +188,12 @@ def check_scripts_and_docs(objects):
         if marker not in import_script:
             fail("import_dashboard.sh is missing response validation: %s" % marker)
     raw = NDJSON.read_text(encoding="utf-8")
-    for marker in ('"id":"logs-*"', '"index":"logs-*"', "temps réel", "par jour"):
+    for marker in ('"id":"logs-*"', '"index":"logs-*"', "temps réel", "par jour", "énergie kWh 1 min"):
         if marker in raw:
             fail("Kibana artifact contains a stale marker: %s" % marker)
     for path in (NDJSON, README, SCHEMAS):
         body = path.read_text(encoding="utf-8")
-        if "temps réel" in body or "3 visualisations historiques" in body:
+        if "temps réel" in body or "3 visualisations historiques" in body or "énergie kWh 1 min" in body:
             fail("Misleading Kibana wording remains in %s" % path.name)
     generator = (ROOT / "scripts/generate_logs.py").read_text(encoding="utf-8")
     for marker in ('"water"', '"m3"', "occupancy_rate", "estimated_due_date", "predicted_failure"):
