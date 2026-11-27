@@ -1,9 +1,10 @@
 import os
 
 from apiflask import APIFlask
-from flask import request
+from flask import render_template, request
 from werkzeug.exceptions import RequestEntityTooLarge
 
+from app.api.dashboard import api_v1_dashboard
 from app.api.errors import (
     ERROR_RESPONSE,
     ERROR_SCHEMA,
@@ -188,6 +189,8 @@ def create_app():
         {"name": "Système", "description": "Contrôles de disponibilité du service"},
         {"name": "Fichiers", "description": "Upload, suivi et aperçu des fichiers"},
         {"name": "Recherche", "description": "Recherche Elasticsearch et historique MongoDB"},
+        {"name": "Tableau de bord", "description": "KPI, export et suivi des fichiers"},
+        {"name": "Interface web", "description": "Pages Bootstrap du tableau de bord"},
     ]
 
     max_bytes = int(os.environ.get("MAX_UPLOAD_BYTES", "104857600"))
@@ -198,6 +201,7 @@ def create_app():
 
     app.register_blueprint(api_v1)
     app.register_blueprint(api_v1_search)
+    app.register_blueprint(api_v1_dashboard)
 
     @app.after_request
     def disable_docs_cache(response):
@@ -233,10 +237,31 @@ def create_app():
 
         start_status_poller(app)
 
+    @app.errorhandler(404)
+    def not_found(_error):
+        if request.path.startswith("/api/"):
+            return error_response("NOT_FOUND", "Resource not found", 404)
+        return render_template("404.html"), 404
+
     @app.get("/")
-    @app.doc(summary="Page d'accueil", tags=["Système"])
+    @app.doc(summary="Page d'accueil du tableau de bord", tags=["Interface web"])
     def index():
-        return "Mini-Projet ELK - Smart Building IoT"
+        return render_template("index.html")
+
+    @app.get("/upload")
+    @app.doc(summary="Page de dépôt de fichiers", tags=["Interface web"])
+    def upload_page():
+        return render_template("upload.html")
+
+    @app.get("/search")
+    @app.doc(summary="Page de recherche", tags=["Interface web"])
+    def search_page():
+        return render_template("search.html")
+
+    @app.get("/results")
+    @app.doc(summary="Page des résultats de recherche", tags=["Interface web"])
+    def results_page():
+        return render_template("results.html")
 
     @app.get("/health")
     @app.doc(

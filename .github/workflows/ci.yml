@@ -38,6 +38,19 @@ jobs:
           test -f app/api/errors.py
           test -f app/api/schemas.py
           test -f scripts/check_api_contract.py
+          test -f app/api/dashboard.py
+          test -f app/services/dashboard_stats.py
+          test -f app/utils/cache.py
+          test -f app/templates/base.html
+          test -f app/templates/index.html
+          test -f app/templates/upload.html
+          test -f app/templates/search.html
+          test -f app/templates/results.html
+          test -f app/templates/404.html
+          test -f app/static/css/app.css
+          test -f app/static/js/app.js
+          test -f kibana/saved_objects/elk-dashboard.ndjson
+          test -f kibana/import_dashboard.sh
           grep -q 'APIFlask' app/app.py
           grep -q 'VALIDATION_ERROR_STATUS_CODE' app/app.py
           grep -q 'ERROR_SCHEMA' app/app.py
@@ -49,6 +62,13 @@ jobs:
           grep -q 'datetime-local' app/app.py
           grep -q 'no-store' app/app.py
           grep -q '"example": "temperatur"' app/api/schemas.py
+          grep -q 'api_v1_dashboard' app/app.py
+          grep -q 'redis==5.2.1' requirements.txt
+          grep -q 'elk:kpi:energy_realtime' app/services/dashboard_stats.py
+          grep -q 'text/csv' app/api/dashboard.py
+          grep -q 'XMLHttpRequest' app/static/js/app.js
+          bash -n kibana/import_dashboard.sh
+          python -c "import json,pathlib; [json.loads(line) for line in pathlib.Path('kibana/saved_objects/elk-dashboard.ndjson').read_text().splitlines()]"
           grep -q 'threshold_breached' elasticsearch/templates/logs-alertes.json
           grep -q 'threshold_breached' elasticsearch/templates/logs-occupation.json
           grep -q 'api_v1_search' app/app.py

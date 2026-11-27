@@ -16,6 +16,13 @@ required = {
     "/api/v1/files/{file_id}",
     "/api/v1/search",
     "/api/v1/history",
+    "/api/v1/stats",
+    "/api/v1/maintenance/forecast",
+    "/api/v1/logs/export",
+    "/api/v1/files",
+    "/upload",
+    "/search",
+    "/results",
 }
 paths = set(app.spec["paths"])
 missing = required - paths
@@ -29,6 +36,13 @@ expected_methods = {
     "/api/v1/files/{file_id}": {"get"},
     "/api/v1/search": {"get"},
     "/api/v1/history": {"get"},
+    "/api/v1/stats": {"get"},
+    "/api/v1/maintenance/forecast": {"get"},
+    "/api/v1/logs/export": {"get"},
+    "/api/v1/files": {"get"},
+    "/upload": {"get"},
+    "/search": {"get"},
+    "/results": {"get"},
 }
 for path, methods in expected_methods.items():
     actual = set(app.spec["paths"][path])
@@ -57,6 +71,26 @@ for path in ("/docs", "/openapi.json"):
         raise SystemExit("%s is cacheable" % path)
 
 docs_html = client.get("/docs").get_data(as_text=True)
+
+for path in ("/", "/upload", "/search", "/results"):
+    response = client.get(path)
+    body = response.get_data(as_text=True)
+    if response.status_code != 200 or "text/html" not in response.content_type:
+        raise SystemExit("%s is not serving HTML: %s" % (path, response.status_code))
+    if "Smart Building" not in body:
+        raise SystemExit("%s is missing the Bootstrap layout" % path)
+
+missing_page = client.get("/cette-page-nexiste-pas")
+if missing_page.status_code != 404 or "Page introuvable" not in missing_page.get_data(as_text=True):
+    raise SystemExit("Frontend 404 page is missing")
+
+missing_api = client.get("/api/v1/inconnu")
+if missing_api.status_code != 404 or "error" not in missing_api.get_json():
+    raise SystemExit("API 404 is not normalized")
+
+export_responses = app.spec["paths"]["/api/v1/logs/export"]["get"]["responses"]
+if "200" not in export_responses or "text/csv" not in export_responses["200"]["content"]:
+    raise SystemExit("CSV export is not documented")
 
 schema = app.config["HTTP_ERROR_SCHEMA"]
 if set(schema["properties"]) != {"error"}:

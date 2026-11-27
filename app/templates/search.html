@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Recherche de logs{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h1 class="h3 mb-1">Recherche de logs</h1>
+    <p class="text-muted mb-4">Recherche plein texte tolérant aux fautes, avec filtres sur le type, la période et l'entité.</p>
+
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form id="search-form" method="get" action="/results">
+          <div class="mb-3">
+            <label for="q" class="form-label">Mots-clés</label>
+            <input id="q" name="q" type="search" class="form-control" placeholder="Ex. : temperatur, alerte, salle B2" autocomplete="off">
+            <div class="form-text">La recherche est insensible aux fautes de frappe.</div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="log_type" class="form-label">Type de log</label>
+              <select id="log_type" name="log_type" class="form-select">
+                <option value="">Tous les types</option>
+                <option value="capteurs">Capteurs</option>
+                <option value="alertes">Alertes</option>
+                <option value="energie">Énergie</option>
+                <option value="occupation">Occupation</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="severity" class="form-label">Sévérité</label>
+              <input id="severity" name="severity" type="text" class="form-control" list="severity-options" placeholder="Ex. : critical">
+              <datalist id="severity-options">
+                <option value="critical"></option>
+                <option value="warning"></option>
+                <option value="info"></option>
+              </datalist>
+            </div>
+            <div class="col-md-6">
+              <label for="from" class="form-label">Depuis</label>
+              <input id="from" name="from" type="datetime-local" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label for="to" class="form-label">Jusqu'au</label>
+              <input id="to" name="to" type="datetime-local" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label for="zone" class="form-label">Zone</label>
+              <input id="zone" name="zone" type="text" class="form-control" placeholder="Ex. : zone-nord">
+            </div>
+            <div class="col-md-6">
+              <label for="entity_id" class="form-label">Identifiant d'entité</label>
+              <input id="entity_id" name="entity_id" type="text" class="form-control" placeholder="sensor_id, meter_id ou room_id">
+            </div>
+            <div class="col-md-6">
+              <label for="sort" class="form-label">Tri</label>
+              <select id="sort" name="sort" class="form-select">
+                <option value="recent">Plus récents d'abord</option>
+                <option value="oldest">Plus anciens d'abord</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4">
+            <a href="/search" class="btn btn-outline-secondary">Réinitialiser</a>
+            <button type="submit" class="btn btn-primary px-4">Lancer la recherche</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Historique des recherches</span>
+        <a href="/api/v1/history" target="_blank" rel="noopener" class="small">JSON</a>
+      </div>
+      <div class="card-body">
+        <p id="history-status" class="text-muted small">Chargement de l'historique…</p>
+        <ul id="history-list" class="list-group list-group-flush"></ul>
+      </div>
+      <div class="card-footer small text-muted">
+        Les recherches sont conservées 90 jours dans MongoDB.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
