@@ -227,7 +227,7 @@ curl localhost:8088/health
    bash kibana/setup_data_view.sh
    bash kibana/import_dashboard.sh
    ```
-   Le dashboard `Smart Building IoT` restaure la période 7 jours, utilise la data view combinée `sb-logs-*,logs-*` et contient cinq visualisations : température moyenne 7 j en °C, alertes critiques 24 h, énergie kWh 1 min, occupation 7 j en pourcentage et prévisions de maintenance futures. L'import exige `success: true`, `successCount: 7` et l'absence d'avertissements.
+   Le dashboard `Smart Building IoT` restaure la période 7 jours, utilise la data view combinée `sb-logs-*,logs-*` et contient cinq visualisations : température moyenne 7 j en °C, alertes critiques 24 h, énergie kWh 7 j, occupation 7 j en pourcentage et prévisions de maintenance futures. L'import exige `success: true`, `successCount: 7` et l'absence d'avertissements.
 6. Ouvrir une URL inconnue : la page 404 Bootstrap s'affiche ; une URL `/api/v1/...` inconnue renvoie toujours une erreur JSON BNF4.
 7. Vérifier que `/privacy` et `/terms` renvoient une page 404 et qu'aucun lien juridique ni pastille `ELK` n'apparaît dans la navigation ou le pied de page.
 8. Vérifier que le favicon est servi sur `/static/favicon.svg` et qu'aucune page n'affiche de tag « Made with AI ».

@@ -111,6 +111,7 @@ jobs:
           ! grep -Rq 'occurrence(s)' app/templates app/static/js/app.js
           ! grep -Rq 'Alertes critiques par jour' kibana/saved_objects README.md docs
           ! grep -Rq 'Énergie temps réel' kibana/saved_objects README.md docs
+          ! grep -Rq 'énergie kWh 1 min' kibana/saved_objects README.md docs
           grep -q 'text/csv' app/api/dashboard.py
           grep -q 'XMLHttpRequest' app/static/js/app.js
           bash -n kibana/import_dashboard.sh
