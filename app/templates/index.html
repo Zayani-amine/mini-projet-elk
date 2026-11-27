@@ -4,7 +4,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
   <div>
     <h1 class="h3 mb-1">Tableau de bord Smart Building</h1>
-    <p class="text-muted mb-0">Vue consolidée des capteurs, alertes, énergie, occupation et maintenance.</p>
+    <p class="text-muted mb-0">Valeurs calculées à partir des événements indexés dans Elasticsearch.</p>
   </div>
   <span id="cache-badge" class="badge text-bg-secondary">Cache : en attente</span>
 </div>
@@ -24,7 +24,7 @@
     <div class="card kpi-card h-100 shadow-sm">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Température moyenne</div>
-        <div id="kpi-temperature" class="kpi-value">—</div>
+        <div id="kpi-temperature" class="kpi-value">n/d</div>
         <div class="text-muted small">Toutes zones confondues</div>
       </div>
     </div>
@@ -33,7 +33,7 @@
     <div class="card kpi-card h-100 shadow-sm">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Alertes critiques</div>
-        <div id="kpi-alerts" class="kpi-value">—</div>
+        <div id="kpi-alerts" class="kpi-value">n/d</div>
         <div class="text-muted small">Dernier jour relevé</div>
       </div>
     </div>
@@ -42,7 +42,7 @@
     <div class="card kpi-card h-100 shadow-sm">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Énergie temps réel</div>
-        <div id="kpi-energy" class="kpi-value">—</div>
+        <div id="kpi-energy" class="kpi-value">n/d</div>
         <div class="text-muted small">Dernière minute relevée</div>
       </div>
     </div>
@@ -51,7 +51,7 @@
     <div class="card kpi-card h-100 shadow-sm">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Taux d'occupation</div>
-        <div id="kpi-occupancy" class="kpi-value">—</div>
+        <div id="kpi-occupancy" class="kpi-value">n/d</div>
         <div class="text-muted small">Moyenne des salles</div>
       </div>
     </div>
@@ -60,7 +60,7 @@
     <div class="card kpi-card h-100 shadow-sm">
       <div class="card-body">
         <div class="text-muted small text-uppercase">Pannes prévues</div>
-        <div id="kpi-maintenance" class="kpi-value">—</div>
+        <div id="kpi-maintenance" class="kpi-value">n/d</div>
         <div class="text-muted small">Équipements à surveiller</div>
       </div>
     </div>
@@ -71,34 +71,34 @@
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Température moyenne par zone</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-temperature"></canvas></div></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-temperature">Graphique de température non pris en charge par ce navigateur.</canvas></div></div>
     </div>
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Alertes critiques par jour</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-alerts"></canvas></div></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-alerts">Graphique des alertes non pris en charge par ce navigateur.</canvas></div></div>
     </div>
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Consommation d'énergie en temps réel</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-energy"></canvas></div></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-energy">Graphique d'énergie non pris en charge par ce navigateur.</canvas></div></div>
     </div>
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Taux d'occupation par salle</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-occupancy"></canvas></div></div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="chart-occupancy">Graphique d'occupation non pris en charge par ce navigateur.</canvas></div></div>
     </div>
   </div>
   <div class="col-12" id="maintenance-table-card">
     <div class="card shadow-sm">
       <div class="card-header fw-semibold">Prévisions de maintenance</div>
       <div class="card-body">
-        <div class="chart-wrap chart-wrap-wide"><canvas id="chart-maintenance"></canvas></div>
+        <div class="chart-wrap chart-wrap-wide"><canvas id="chart-maintenance">Graphique de maintenance non pris en charge par ce navigateur.</canvas></div>
         <div class="table-responsive mt-3">
-          <table class="table table-sm table-hover align-middle mb-0">
+          <table class="table table-sm table-hover align-middle mb-0" aria-label="Prévisions de maintenance par équipement">
             <thead>
               <tr>
                 <th>Équipement</th>

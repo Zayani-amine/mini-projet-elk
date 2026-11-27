@@ -156,7 +156,7 @@ SWAGGER_UI_ENHANCEMENTS = """
     const banner = document.createElement('div');
     banner.className = 'elk-docs-banner';
     banner.style.cssText = 'margin-bottom:14px;padding:10px 12px;border-left:4px solid #2e7d32;background:#e8f5e9;color:#1b5e20;font-weight:600;';
-    banner.textContent = 'ELK API v1.1.0 — recherche floue, dates calendrier, upload .csv/.json/.txt sans option « Tous les fichiers » sous Chrome/Edge.';
+    banner.textContent = 'ELK API v1.1.0 : recherche floue, dates calendrier, upload .csv/.json/.txt sans option « Tous les fichiers » sous Chrome/Edge.';
     info.prepend(banner);
   };
 
@@ -198,6 +198,13 @@ def create_app():
     app.config["MAX_UPLOAD_BYTES"] = max_bytes
     app.config["STAGING_DIR"] = os.environ.get("STAGING_DIR", "/app/data/staging")
     app.config["INBOX_DIR"] = os.environ.get("INBOX_DIR", "/app/data/inbox/uploads")
+
+    @app.context_processor
+    def inject_site_settings():
+        return {
+            "public_base_url": os.environ.get("PUBLIC_BASE_URL", "http://localhost:5000").rstrip("/"),
+            "kibana_url": os.environ.get("KIBANA_URL", "http://localhost:5601").rstrip("/"),
+        }
 
     app.register_blueprint(api_v1)
     app.register_blueprint(api_v1_search)
@@ -262,6 +269,16 @@ def create_app():
     @app.doc(summary="Page des résultats de recherche", tags=["Interface web"])
     def results_page():
         return render_template("results.html")
+
+    @app.get("/privacy")
+    @app.doc(summary="Politique de confidentialité", tags=["Interface web"])
+    def privacy_page():
+        return render_template("privacy.html")
+
+    @app.get("/terms")
+    @app.doc(summary="Conditions d'utilisation", tags=["Interface web"])
+    def terms_page():
+        return render_template("terms.html")
 
     @app.get("/health")
     @app.doc(

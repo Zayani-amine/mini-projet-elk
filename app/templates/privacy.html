@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Politique de confidentialité{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-9">
+    <h1 class="h3 mb-1">Politique de confidentialité</h1>
+    <p class="text-muted mb-4">Modèle neutre à compléter avant la mise en ligne.</p>
+
+    <div class="alert alert-warning" role="status">
+      Informations à renseigner avant publication : identité du responsable de traitement, adresse de contact, hébergeur et durées de conservation définitives.
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">Données traitées</div>
+      <div class="card-body">
+        <p>Le service traite les fichiers de logs déposés, leurs métadonnées, les requêtes de recherche et les filtres associés. Les métadonnées comprennent le nom du fichier, sa taille, son type et son état d'indexation.</p>
+        <p class="mb-0">Aucune authentification n'est actuellement intégrée. N'utilisez pas le service pour déposer des données personnelles ou sensibles.</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">Finalités et stockage</div>
+      <div class="card-body">
+        <p>Les événements sont indexés dans Elasticsearch pour la recherche. Les métadonnées de fichiers et l'historique des recherches sont conservés dans MongoDB. Les résultats de KPI et les suggestions sont mis en cache dans Redis.</p>
+        <p class="mb-0">L'historique des recherches est conservé 90 jours. Les fichiers déposés et les événements indexés sont conservés jusqu'à suppression manuelle ou recréation de l'environnement.</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">Services tiers</div>
+      <div class="card-body">
+        <p class="mb-0">Bootstrap et Chart.js sont chargés depuis un CDN. Aucun outil de suivi publicitaire n'est intégré dans l'interface.</p>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">Contact et droits</div>
+      <div class="card-body">
+        <p>Pour toute question relative aux données traitées, utilisez l'adresse à renseigner avant publication : [contact à renseigner].</p>
+        <p class="mb-0">Dernière mise à jour : [date à renseigner].</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

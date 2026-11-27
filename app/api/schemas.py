@@ -51,6 +51,32 @@ class SearchQuery(Schema):
     )
 
 
+class SuggestQuery(Schema):
+    q = fields.String(
+        metadata={
+            "description": "Préfixe ou mot avec faute de frappe, minimum 2 caractères",
+            "example": "temperatur",
+        }
+    )
+    log_type = fields.String(
+        validate=OneOf(LOG_TYPE_VALUES),
+        metadata={"description": "Type de log"},
+    )
+    date_from = fields.String(
+        data_key="from",
+        metadata={"format": "date-time", "description": "Date ISO-8601 minimale, inclusive"},
+    )
+    date_to = fields.String(
+        data_key="to",
+        metadata={"format": "date-time", "description": "Date ISO-8601 maximale, inclusive"},
+    )
+    source_file_id = fields.String(metadata={"description": "Identifiant du fichier source"})
+    severity = fields.String(metadata={"description": "Sévérité d'une alerte"})
+    zone = fields.String(metadata={"description": "Zone du bâtiment"})
+    entity_id = fields.String(metadata={"description": "Alias de sensor_id, meter_id ou room_id"})
+    size = fields.Integer(load_default=8, validate=Range(min=1, max=8))
+
+
 class HistoryQuery(Schema):
     q = fields.String(metadata={"description": "Filtre sur la requête enregistrée"})
     page = fields.Integer(load_default=1, validate=Range(min=1))
