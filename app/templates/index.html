@@ -6,7 +6,10 @@
     <h1 class="h3 mb-1">Tableau de bord Smart Building</h1>
     <p class="text-muted mb-0">Valeurs calculées à partir des événements indexés dans Elasticsearch.</p>
   </div>
-  <span id="cache-badge" class="badge text-bg-secondary">Cache : en attente</span>
+  <div class="d-flex align-items-center gap-2">
+    <a id="alerts-headline" class="alert-link-chip d-none" href="/search?log_type=alertes&amp;severity=critical">Alertes critiques <span id="alerts-headline-dot" class="status-dot" aria-hidden="true"></span></a>
+    <span id="cache-badge" class="badge text-bg-secondary">Cache : en attente</span>
+  </div>
 </div>
 
 <div id="dashboard-loading" class="text-center py-5">
@@ -32,9 +35,10 @@
   <div class="col">
     <div class="card kpi-card h-100 shadow-sm">
       <div class="card-body">
-        <div class="text-muted small text-uppercase">Alertes critiques</div>
+        <div class="text-muted small text-uppercase d-flex align-items-center gap-2">Alertes critiques <span id="alerts-dot" class="status-dot d-none" aria-hidden="true"></span></div>
         <div id="kpi-alerts" class="kpi-value">n/d</div>
         <div class="text-muted small">Dernier jour relevé</div>
+        <div id="alerts-action" class="small severity-critical d-none">Action requise</div>
       </div>
     </div>
   </div>
@@ -76,7 +80,7 @@
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header fw-semibold">Alertes critiques par jour</div>
+      <div class="card-header fw-semibold d-flex align-items-center gap-2">Alertes critiques par jour <span id="alerts-chart-dot" class="status-dot d-none" aria-hidden="true"></span></div>
       <div class="card-body"><div class="chart-wrap"><canvas id="chart-alerts">Graphique des alertes non pris en charge par ce navigateur.</canvas></div></div>
     </div>
   </div>

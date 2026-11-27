@@ -13,7 +13,10 @@
   <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <span id="alert-status-global" class="visually-hidden" role="status" aria-atomic="true"></span>
+  <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
       <a class="navbar-brand fw-semibold" href="/"><span class="brand-mark">ELK</span> Smart Building</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Afficher le menu">
@@ -24,6 +27,7 @@
           <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/">Accueil</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/upload' else '' }}" href="/upload">Upload</a></li>
           <li class="nav-item"><a class="nav-link {{ 'active' if request.path in ('/search', '/results') else '' }}" href="/search">Recherche</a></li>
+          <li class="nav-item"><a id="alerts-shortcut" class="nav-link d-flex align-items-center gap-2" href="/search?log_type=alertes&amp;severity=critical">Alertes <span id="nav-alert-dot" class="status-dot d-none" aria-hidden="true"></span></a></li>
           <li class="nav-item"><a class="nav-link" href="/docs" target="_blank" rel="noopener">API docs</a></li>
           <li class="nav-item"><a class="nav-link" href="{{ kibana_url }}" target="_blank" rel="noopener">Kibana</a></li>
         </ul>
@@ -35,7 +39,7 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer mt-auto py-3 bg-light border-top">
+  <footer class="footer mt-auto py-3 glass-surface">
     <div class="container d-flex flex-wrap justify-content-between gap-2 small text-muted">
       <span>Mini-Projet ELK · Smart Building IoT</span>
       <span>
