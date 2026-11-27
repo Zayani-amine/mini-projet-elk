@@ -21,8 +21,8 @@ Les PDF de sprint 1 utilisent un décalage de -6 (leur `ELK-7` correspond à `EL
 | --- | --- | --- | --- |
 | 1 | S1-S2 | ELK-7 à ELK-12 `[T01]`-`[T06]` | Terminé (analyse, architecture, mapping, maquettes, revue n°1) |
 | 2 | S3-S4 | ELK-13 à ELK-18 `[T07]`-`[T12]` | Terminé (socle, Faker, templates, CI GitHub Actions) |
-| 3 | S5-S6 | ELK-19 à ELK-24 `[T13]`-`[T18]` | À venir (upload, ingestion, recherche, API) |
-| 4 | S7-S8 | ELK-25 à ELK-31 `[T19]`-`[T25]` | À venir (frontend et Kibana) |
+| 3 | S5-S6 | ELK-19 à ELK-24 `[T13]`-`[T18]` | Terminé (upload, ingestion, recherche, API) |
+| 4 | S7-S8 | ELK-25 à ELK-31 `[T19]`-`[T25]` | Terminé (frontend Bootstrap 5, KPIs, export CSV, cache Redis, Kibana) |
 | 5 | S9-S10 | ELK-32 à ELK-34 `[T26]`-`[T28]` | À venir (observabilité) |
 | 6 | S11-S12 | ELK-35, ELK-36 `[T29]`-`[T30]`* | À venir (tests, CI/CD, livraison) |
 
@@ -185,13 +185,13 @@ Les 7 étapes à exécuter depuis Swagger UI (`http://localhost:5000/docs`) :
 6. `GET /api/v1/files/not-an-object-id` : réponse `400` au format BNF4.
 7. `POST /api/v1/upload` avec un fichier de 101 Mo : réponse `413` au format BNF4.
 
-La page Swagger doit afficher la bannière verte `ELK API v1.1.0` ; si l'ancienne page reste affichée, ouvrir `http://localhost:5000/docs?v=4` ou vider le cache du navigateur. Les réponses `/docs` et `/openapi.json` sont désormais envoyées avec `Cache-Control: no-store`.
+La page Swagger doit afficher la bannière verte `ELK API v1.1.0` ; si l'ancienne page reste affichée, ouvrir `http://localhost:5000/docs?v=10` ou vider le cache du navigateur. Les réponses `/docs` et `/openapi.json` sont désormais envoyées avec `Cache-Control: no-store`.
 
 Vérification rapide en ligne de commande :
 
 ```bash
 python scripts/check_api_contract.py
-curl 'localhost:5000/docs?v=4'
+curl 'localhost:5000/docs?v=10'
 curl localhost:5000/openapi.json
 curl -I localhost:5000/docs
 truncate -s 101M /tmp/capteurs_trop_gros.csv
@@ -199,8 +199,33 @@ curl -F "file=@/tmp/capteurs_trop_gros.csv;filename=capteurs_trop_gros.csv" loca
 curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/upload
 ```
 
+## Vérification ELK-25 à ELK-31
+
+1. Ouvrir `http://localhost:5000/` : les 5 KPI et les graphiques Chart.js se chargent depuis `/api/v1/stats` ; le badge indique si Redis a servi le cache.
+2. Ouvrir `http://localhost:5000/upload` : glisser-déposer un `.csv`, `.json` ou `.txt`, suivre la progression, puis vérifier le `file_id` retourné.
+3. Ouvrir `http://localhost:5000/search`, lancer `temperatur` : la page `/results` affiche 50 résultats par page, le tri, le détail de chaque document et le bouton d'export CSV.
+4. Vérifier les endpoints JSON : `/api/v1/stats`, `/api/v1/maintenance/forecast` et `/api/v1/files`.
+5. Créer les data views puis importer le dashboard Kibana :
+   ```bash
+   bash kibana/setup_data_view.sh
+   bash kibana/import_dashboard.sh
+   ```
+   Le dashboard `Smart Building IoT` contient 3 visualisations : température par zone/heure, alertes critiques par jour et énergie temps réel.
+6. Ouvrir une URL inconnue : la page 404 Bootstrap s'affiche ; une URL `/api/v1/...` inconnue renvoie toujours une erreur JSON BNF4.
+
+Commandes rapides :
+
+```bash
+python scripts/check_api_contract.py
+curl localhost:5000/
+curl localhost:5000/api/v1/stats
+curl localhost:5000/api/v1/maintenance/forecast
+curl 'localhost:5000/api/v1/logs/export?q=temperatur&size=50' -o /tmp/logs-export.csv
+bash -n kibana/import_dashboard.sh
+```
+
 ## Points à consigner suite à la revue n°1
 
 - Port de l'application web : 5000 dans le livrable d'architecture, 8000 dans le sujet. Valeur actuelle : 5000.
 - Version ELK figée à 8.17.0 : le layer de l'image 8.19.0 est corrompu dans le cache Docker local.
-- Durées de vie Redis (60 s / 10 s / 300 s) à confirmer avec l'encadrant ; seuils ELK-22 fixés dans le pipeline Logstash.
+- Durées de vie Redis appliquées : 60 s pour les KPI généraux et les recherches, 10 s pour l'énergie temps réel, 300 s pour les prévisions de maintenance ; seuils ELK-22 fixés dans le pipeline Logstash.

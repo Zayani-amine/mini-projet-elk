@@ -73,7 +73,7 @@ def _date(value, name):
     return parsed
 
 
-def parse_search_params(args):
+def parse_search_params(args, max_size=100):
     q = _clean(args.get("q"), "q")
     log_type = _clean(args.get("log_type"), "log_type", 64).lower() or None
     if log_type and log_type not in LOG_TYPES:
@@ -98,7 +98,7 @@ def parse_search_params(args):
         "date_from": date_from,
         "date_to": date_to,
         "page": _integer(args.get("page"), "page", 1, 1),
-        "size": _integer(args.get("size"), "size", 20, 1, 100),
+        "size": _integer(args.get("size"), "size", 20, 1, max_size),
         "sort": sort,
     }
 
