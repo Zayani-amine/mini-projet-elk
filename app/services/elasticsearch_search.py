@@ -28,6 +28,35 @@ SEARCH_FIELDS_FUZZY = [
     "equipment_type",
     "energy_type",
 ]
+SUGGEST_AGG_FIELDS = [
+    ("log_type", "log_type"),
+    ("severity", "severity"),
+    ("zone", "zone"),
+    ("measure", "measure"),
+    ("status", "status"),
+    ("rule", "rule"),
+    ("equipment_type", "equipment_type"),
+    ("energy_type", "energy_type"),
+    ("sensor_id", "sensor_id"),
+    ("meter_id", "meter_id"),
+    ("room_id", "room_id"),
+    ("equipment_id", "equipment_id"),
+    ("message_keyword", "message.keyword"),
+]
+SUGGEST_FUZZY_FIELDS = [
+    "message^3",
+    "sensor_id^2",
+    "meter_id^2",
+    "room_id^2",
+    "zone",
+    "measure",
+    "status",
+    "severity",
+    "rule",
+    "equipment_type",
+    "energy_type",
+    "log_type",
+]
 SORT_VALUES = {"recent": "desc", "oldest": "asc"}
 
 
@@ -101,6 +130,15 @@ def parse_search_params(args, max_size=100):
         "size": _integer(args.get("size"), "size", 20, 1, max_size),
         "sort": sort,
     }
+
+
+def parse_suggest_params(args, max_size=8):
+    params = parse_search_params(args, max_size=max_size)
+    params.pop("page", None)
+    params.pop("sort", None)
+    if params["q"] and len(params["q"]) < 2:
+        params["q"] = ""
+    return params
 
 
 def build_query(params):
@@ -217,3 +255,107 @@ def search_logs(params):
         "size": params["size"],
         "took_ms": int(payload.get("took", 0)),
     }
+
+
+def _suggest_filters(params):
+    filters = []
+    for key, field in (
+        ("log_type", "log_type"),
+        ("source_file_id", "source_file_id"),
+        ("severity", "severity"),
+        ("zone", "zone"),
+        ("entity_id", "entity_id"),
+    ):
+        if params.get(key):
+            filters.append({"term": {field: params[key]}})
+    if params.get("date_from") or params.get("date_to"):
+        bounds = {}
+        if params.get("date_from"):
+            bounds["gte"] = params["date_from"].isoformat()
+        if params.get("date_to"):
+            bounds["lte"] = params["date_to"].isoformat()
+        filters.append({"range": {"@timestamp": bounds}})
+    return filters
+
+
+def build_suggest_query(params):
+    q = params.get("q", "")
+    if not q:
+        return {"size": 0, "track_total_hits": False, "aggs": {}}
+
+    filters = _suggest_filters(params)
+    aggs = {}
+    for name, field in SUGGEST_AGG_FIELDS:
+        aggs["prefix_" + name] = {
+            "filter": {"prefix": {field: q.lower()}},
+            "aggs": {"values": {"terms": {"field": field, "size": 3}}},
+        }
+
+    fuzzy_bool = {
+        "should": [
+            {
+                "multi_match": {
+                    "query": q,
+                    "fields": SUGGEST_FUZZY_FIELDS,
+                    "type": "best_fields",
+                    "operator": "or",
+                    "fuzziness": "AUTO",
+                    "prefix_length": 1,
+                    "max_expansions": 20,
+                    "boost": 1,
+                }
+            }
+        ],
+        "minimum_should_match": 1,
+    }
+    if filters:
+        fuzzy_bool["filter"] = filters
+
+    for name, field in SUGGEST_AGG_FIELDS:
+        aggs["fuzzy_" + name] = {
+            "filter": {"bool": fuzzy_bool},
+            "aggs": {"values": {"terms": {"field": field, "size": 3}}},
+        }
+
+    return {"size": 0, "track_total_hits": False, "aggs": aggs}
+
+
+def suggest_values(params):
+    body = build_suggest_query(params)
+    if not body["aggs"]:
+        return {"suggestions": [], "took_ms": 0}
+
+    try:
+        payload = post_json("/" + SEARCH_INDEX_PATTERN + "/_search", body)
+    except ElasticsearchError as exc:
+        raise SearchBackendError(str(exc)) from exc
+    except Exception as exc:
+        if getattr(exc, "code", None) == 404:
+            return {"suggestions": [], "took_ms": 0}
+        raise SearchBackendError("Elasticsearch suggestions failed: %s" % exc) from exc
+
+    aggregations = payload.get("aggregations", {})
+    suggestions = []
+    seen = set()
+    for phase in ("prefix", "fuzzy"):
+        for name, field in SUGGEST_AGG_FIELDS:
+            aggregation = aggregations.get(phase + "_" + name, {})
+            buckets = aggregation.get("values", {}).get("buckets", [])
+            for bucket in buckets:
+                value = str(bucket.get("key", "")).strip()
+                if not value or value in seen:
+                    continue
+                seen.add(value)
+                suggestions.append(
+                    {
+                        "value": value,
+                        "field": "message" if field == "message.keyword" else field,
+                        "count": int(bucket.get("doc_count", 0)),
+                    }
+                )
+                if len(suggestions) >= params["size"]:
+                    return {
+                        "suggestions": suggestions,
+                        "took_ms": int(payload.get("took", 0)),
+                    }
+    return {"suggestions": suggestions, "took_ms": int(payload.get("took", 0))}

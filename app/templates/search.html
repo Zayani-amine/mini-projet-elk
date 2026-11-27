@@ -11,8 +11,11 @@
         <form id="search-form" method="get" action="/results">
           <div class="mb-3">
             <label for="q" class="form-label">Mots-clés</label>
-            <input id="q" name="q" type="search" class="form-control" placeholder="Ex. : temperatur, alerte, salle B2" autocomplete="off">
-            <div class="form-text">La recherche est insensible aux fautes de frappe.</div>
+            <div class="position-relative">
+              <input id="q" name="q" type="search" class="form-control" placeholder="Ex. : temperatur, alerte, salle B2" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="suggest-list" aria-describedby="q-help">
+              <ul id="suggest-list" class="list-group position-absolute top-100 start-0 w-100 mt-1 d-none suggest-list" role="listbox" aria-label="Valeurs indexées proposées"></ul>
+            </div>
+            <div id="q-help" class="form-text">La recherche est tolérante aux fautes. Les suggestions proviennent des valeurs indexées.</div>
           </div>
 
           <div class="row g-3">

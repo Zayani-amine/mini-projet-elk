@@ -3,15 +3,18 @@ from flask import jsonify, request
 from pymongo.errors import PyMongoError
 
 from app.api.errors import ERROR_RESPONSE, error_response
-from app.api.schemas import HistoryQuery, SearchQuery
+from app.api.schemas import HistoryQuery, SearchQuery, SuggestQuery
 from app.services.elasticsearch_search import (
     SearchBackendError,
     SearchValidationError,
     build_history_document,
     parse_search_params,
+    parse_suggest_params,
     search_logs,
+    suggest_values,
 )
 from app.services.search_history import list_searches, record_search
+from app.utils.cache import cached_value, make_key
 
 api_v1_search = APIBlueprint(
     "api_v1_search",
@@ -74,6 +77,51 @@ def search(query_data):
 
     result["history_id"] = history_id
     return jsonify(result), 200
+
+
+@api_v1_search.get("/suggest")
+@api_v1_search.input(SuggestQuery, location="query", validation=False)
+@api_v1_search.doc(
+    summary="Proposer des valeurs indexées",
+    tags=["Recherche"],
+    description="Retourne des valeurs réelles d'Elasticsearch pour l'autocomplétion, sans écrire dans l'historique.",
+    responses={
+        200: SUCCESS_JSON,
+        400: ERROR_RESPONSE,
+        503: ERROR_RESPONSE,
+    },
+)
+def suggest(query_data):
+    try:
+        params = parse_suggest_params(request.args)
+    except SearchValidationError as exc:
+        return error_response("INVALID_SUGGEST_PARAMS", str(exc), 400)
+
+    if not params["q"]:
+        return jsonify({"suggestions": [], "took_ms": 0, "cache_hit": False}), 200
+
+    key = make_key(
+        "elk:suggest:v1",
+        {
+            "q": params["q"].lower(),
+            "log_type": params["log_type"],
+            "source_file_id": params["source_file_id"],
+            "severity": params["severity"],
+            "zone": params["zone"],
+            "entity_id": params["entity_id"],
+            "date_from": params["date_from"],
+            "date_to": params["date_to"],
+            "size": params["size"],
+        },
+    )
+
+    try:
+        payload, cache_hit = cached_value(key, 30, lambda: suggest_values(params))
+    except SearchBackendError as exc:
+        return error_response("ELASTICSEARCH_UNAVAILABLE", str(exc), 503)
+
+    payload["cache_hit"] = cache_hit
+    return jsonify(payload), 200
 
 
 @api_v1_search.get("/history")

@@ -10,7 +10,7 @@
 
   const formatNumber = (value, digits) => {
     const number = Number(value);
-    if (!Number.isFinite(number)) return '—';
+    if (!Number.isFinite(number)) return 'n/d';
     const fraction = digits === undefined ? 1 : digits;
     return new Intl.NumberFormat('fr-FR', {
       minimumFractionDigits: fraction,
@@ -21,7 +21,7 @@
   const formatInteger = value => formatNumber(value, 0);
 
   const formatDate = value => {
-    if (!value) return '—';
+    if (!value) return 'n/d';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return new Intl.DateTimeFormat('fr-FR', {
@@ -96,7 +96,12 @@
 
   if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.font) {
     Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
-    Chart.defaults.color = '#6c757d';
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#5b6775';
+    Chart.defaults.borderColor = '#e3e8ef';
+    if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
+      Chart.defaults.plugins.legend.labels = Object.assign({}, Chart.defaults.plugins.legend.labels, { boxWidth: 12 });
+    }
   }
 
   async function initDashboard() {
@@ -119,10 +124,10 @@
       const lastAlert = alerts.length ? alerts[alerts.length - 1] : null;
       const lastEnergy = energy.length ? energy[energy.length - 1] : null;
 
-      setText('kpi-temperature', temperatureAverage === null ? '—' : formatNumber(temperatureAverage) + ' °C');
-      setText('kpi-alerts', lastAlert ? formatInteger(numberOr(lastAlert.count, 0)) : '—');
-      setText('kpi-energy', lastEnergy ? formatNumber(numberOr(lastEnergy.total, 0)) + ' kWh' : '—');
-      setText('kpi-occupancy', occupancyAverage === null ? '—' : formatNumber(occupancyAverage) + ' %');
+      setText('kpi-temperature', temperatureAverage === null ? 'n/d' : formatNumber(temperatureAverage) + ' °C');
+      setText('kpi-alerts', lastAlert ? formatInteger(numberOr(lastAlert.count, 0)) : 'n/d');
+      setText('kpi-energy', lastEnergy ? formatNumber(numberOr(lastEnergy.total, 0)) + ' kWh' : 'n/d');
+      setText('kpi-occupancy', occupancyAverage === null ? 'n/d' : formatNumber(occupancyAverage) + ' %');
       setText('kpi-maintenance', formatInteger(maintenance.length));
 
       const badge = document.getElementById('cache-badge');
@@ -135,13 +140,16 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } }
+        scales: {
+          x: { grid: { color: '#e3e8ef' }, ticks: { color: '#5b6775' } },
+          y: { beginAtZero: true, grid: { color: '#e3e8ef' }, ticks: { color: '#5b6775' } }
+        }
       };
 
       makeChart('chart-temperature', {
         type: 'bar',
         data: {
-          labels: temperatures.map(row => (row && row.zone) || '—'),
+          labels: temperatures.map(row => (row && row.zone) || 'n/d'),
           datasets: [{
             label: 'Température (°C)',
             data: temperatures.map(row => numberOr(row && row.avg, 0)),
@@ -150,22 +158,32 @@
           }]
         },
         options: Object.assign({}, axisOptions, {
-          scales: { y: { beginAtZero: true, title: { display: true, text: '°C' } } }
+          scales: {
+            x: { grid: { color: '#e3e8ef' }, ticks: { color: '#5b6775' } },
+            y: {
+              beginAtZero: true,
+              grid: { color: '#e3e8ef' },
+              ticks: { color: '#5b6775' },
+              title: { display: true, text: '°C' }
+            }
+          }
         })
       }, temperatures.length > 0);
 
       makeChart('chart-alerts', {
         type: 'line',
         data: {
-          labels: alerts.map(row => (row && row.day) || '—'),
+          labels: alerts.map(row => (row && row.day) || 'n/d'),
           datasets: [{
             label: 'Alertes critiques',
             data: alerts.map(row => numberOr(row && row.count, 0)),
             borderColor: '#dc3545',
             backgroundColor: 'rgba(220, 53, 69, 0.15)',
             pointBackgroundColor: '#dc3545',
+            pointRadius: 2,
+            borderWidth: 2,
             fill: true,
-            tension: 0.3
+            tension: 0.2
           }]
         },
         options: axisOptions
@@ -174,15 +192,17 @@
       makeChart('chart-energy', {
         type: 'line',
         data: {
-          labels: energy.map(row => (row && row.minute) || '—'),
+          labels: energy.map(row => (row && row.minute) || 'n/d'),
           datasets: [{
             label: 'Énergie (kWh)',
             data: energy.map(row => numberOr(row && row.total, 0)),
             borderColor: '#198754',
             backgroundColor: 'rgba(25, 135, 84, 0.15)',
             pointBackgroundColor: '#198754',
+            pointRadius: 2,
+            borderWidth: 2,
             fill: true,
-            tension: 0.3
+            tension: 0.2
           }]
         },
         options: axisOptions
@@ -191,12 +211,13 @@
       makeChart('chart-occupancy', {
         type: 'doughnut',
         data: {
-          labels: occupancy.map(row => (row && row.room) || '—'),
+          labels: occupancy.map(row => (row && row.room) || 'n/d'),
           datasets: [{
             label: 'Taux d’occupation (%)',
             data: occupancy.map(row => numberOr(row && row.rate, 0)),
-            backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#fd7e14', '#6f42c1', '#20c997'],
-            borderWidth: 0
+            backgroundColor: ['#174a7e', '#198754', '#fd7e14', '#6c757d'],
+            borderWidth: 1,
+            borderColor: '#ffffff'
           }]
         },
         options: {
@@ -213,7 +234,7 @@
       makeChart('chart-maintenance', {
         type: 'bar',
         data: {
-          labels: maintenance.map(row => (row && row.equipment_id) || '—'),
+          labels: maintenance.map(row => (row && row.equipment_id) || 'n/d'),
           datasets: [{
             label: 'Usure (%)',
             data: maintenance.map(row => numberOr(row && row.wear_level, 0)),
@@ -239,7 +260,15 @@
               }
             }
           },
-          scales: { x: { beginAtZero: true, max: 100 } }
+          scales: {
+            x: {
+              beginAtZero: true,
+              max: 100,
+              grid: { color: '#e3e8ef' },
+              ticks: { color: '#5b6775' }
+            },
+            y: { grid: { display: false }, ticks: { color: '#5b6775' } }
+          }
         }
       }, maintenance.length > 0);
 
@@ -251,9 +280,9 @@
           const wear = numberOr(item.wear_level, NaN);
           const tr = document.createElement('tr');
           [
-            item.equipment_id || '—',
-            item.predicted_failure || '—',
-            Number.isFinite(wear) ? formatNumber(wear, 0) + ' %' : '—',
+            item.equipment_id || 'n/d',
+            item.predicted_failure || 'n/d',
+            Number.isFinite(wear) ? formatNumber(wear, 0) + ' %' : 'n/d',
             formatDate(item.estimated_due_date)
           ].forEach(value => {
             const td = document.createElement('td');
@@ -267,7 +296,7 @@
     } catch (error) {
       setText('dashboard-error-message', ' ' + error.message);
       show('dashboard-error', true);
-      ['kpi-temperature', 'kpi-alerts', 'kpi-energy', 'kpi-occupancy', 'kpi-maintenance'].forEach(id => setText(id, '—'));
+      ['kpi-temperature', 'kpi-alerts', 'kpi-energy', 'kpi-occupancy', 'kpi-maintenance'].forEach(id => setText(id, 'n/d'));
     } finally {
       show('dashboard-loading', false);
     }
@@ -370,7 +399,7 @@
         if (xhr.status >= 200 && xhr.status < 300) {
           const result = payload || {};
           setText('upload-result-title', 'Fichier envoyé : ' + (result.original_name || selected.name));
-          setText('upload-file-id', result.file_id || '—');
+          setText('upload-file-id', result.file_id || 'n/d');
           setText('upload-result-meta', [
             result.log_type ? 'Type : ' + result.log_type : '',
             result.logs_count !== undefined ? formatInteger(result.logs_count) + ' lignes' : '',
@@ -430,6 +459,149 @@
     }
   }
 
+  function initSuggestions() {
+    const form = document.getElementById('search-form');
+    const input = document.getElementById('q');
+    const list = document.getElementById('suggest-list');
+    if (!form || !input || !list || typeof AbortController === 'undefined') return;
+
+    let timer = null;
+    let controller = null;
+    let requestId = 0;
+    let active = -1;
+    let items = [];
+
+    const hide = () => {
+      list.replaceChildren();
+      list.classList.add('d-none');
+      input.setAttribute('aria-expanded', 'false');
+      input.removeAttribute('aria-activedescendant');
+      active = -1;
+      items = [];
+    };
+
+    const cancel = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = null;
+      if (controller) controller.abort();
+      controller = null;
+      requestId += 1;
+      hide();
+    };
+
+    const setActive = index => {
+      const options = Array.from(list.querySelectorAll('[role="option"]'));
+      if (!options.length) return;
+      active = (index + options.length) % options.length;
+      options.forEach((option, optionIndex) => {
+        const selected = optionIndex === active;
+        option.classList.toggle('active', selected);
+        option.setAttribute('aria-selected', String(selected));
+      });
+      input.setAttribute('aria-activedescendant', options[active].id);
+    };
+
+    const select = index => {
+      const item = items[index];
+      if (!item) return;
+      input.value = String(item.value || '');
+      cancel();
+      input.focus();
+    };
+
+    const render = suggestions => {
+      items = asArray(suggestions).slice(0, 8);
+      list.replaceChildren();
+      active = -1;
+      if (!items.length) {
+        hide();
+        return;
+      }
+      items.forEach((item, index) => {
+        const option = document.createElement('li');
+        option.id = 'suggest-option-' + index;
+        option.className = 'list-group-item list-group-item-action suggest-item py-2';
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', 'false');
+        const value = document.createElement('div');
+        value.className = 'small fw-semibold';
+        value.textContent = String(item.value || '');
+        const meta = document.createElement('div');
+        meta.className = 'small text-muted suggest-meta';
+        meta.textContent = (item.field || 'valeur') + ' · ' + formatInteger(item.count) + ' occurrence(s)';
+        option.appendChild(value);
+        option.appendChild(meta);
+        option.addEventListener('mousedown', event => {
+          event.preventDefault();
+          select(index);
+        });
+        list.appendChild(option);
+      });
+      list.classList.remove('d-none');
+      input.setAttribute('aria-expanded', 'true');
+    };
+
+    const fetchSuggestions = async term => {
+      const id = ++requestId;
+      controller = new AbortController();
+      const params = buildQuery({
+        q: term,
+        log_type: form.elements.log_type.value,
+        from: toIso(form.elements.from.value),
+        to: toIso(form.elements.to.value),
+        severity: form.elements.severity.value,
+        zone: form.elements.zone.value,
+        entity_id: form.elements.entity_id.value
+      });
+      params.set('size', '8');
+      try {
+        const payload = await fetchJson('/api/v1/suggest?' + params.toString(), {
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        if (id !== requestId) return;
+        render(payload.suggestions);
+      } catch (error) {
+        if (id === requestId && error.name !== 'AbortError') hide();
+      }
+    };
+
+    input.addEventListener('input', () => {
+      if (timer) window.clearTimeout(timer);
+      if (controller) controller.abort();
+      controller = null;
+      const term = input.value.trim();
+      if (term.length < 2) {
+        requestId += 1;
+        hide();
+        return;
+      }
+      timer = window.setTimeout(() => fetchSuggestions(term), 250);
+    });
+
+    input.addEventListener('keydown', event => {
+      if (list.classList.contains('d-none')) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActive(active + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActive(active - 1);
+      } else if (event.key === 'Enter' && active >= 0) {
+        event.preventDefault();
+        select(active);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancel();
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      if (!list.contains(document.activeElement)) cancel();
+    });
+    form.addEventListener('submit', cancel);
+  }
+
   function initSearch() {
     const form = document.getElementById('search-form');
     if (!form) return;
@@ -448,6 +620,7 @@
       });
       window.location.href = '/results?' + params.toString();
     });
+    initSuggestions();
     initHistory();
   }
 
@@ -506,7 +679,7 @@
 
       const appendCell = (tr, value) => {
         const td = document.createElement('td');
-        td.textContent = value === null || value === undefined || value === '' ? '—' : String(value);
+        td.textContent = value === null || value === undefined || value === '' ? 'n/d' : String(value);
         tr.appendChild(td);
         return td;
       };

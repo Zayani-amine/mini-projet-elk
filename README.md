@@ -122,7 +122,7 @@ curl localhost:5000/openapi.json
 
 La documentation interactive Swagger UI est disponible sur `http://localhost:5000/docs` et la spécification OpenAPI sur `http://localhost:5000/openapi.json` (ELK-24). Toutes les routes de l'API sont documentées et exécutables depuis Swagger. Les erreurs suivent un format JSON unique (BNF4) : `{"error":{"code":"...","message":"...","status":400,"detail":{}}}`. Les erreurs APIFlask et Werkzeug (400, 404, 405, 413, 415, 500, 503) passent par le même processeur d'erreur.
 
-Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log, copie le fichier dans `data/inbox/uploads/` avec le statut `ingesting`, puis un polleur Flask interroge Elasticsearch par `source_file_id` pour passer le document à `indexed` dès que `logs_count` événements sont présents (ELK-21). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées, l'aperçu des 10 premières lignes (ELK-20) et le statut d'indexation. Le endpoint `GET /api/v1/search` interroge `sb-logs-*,logs-*` avec `q`, `log_type`, `from`, `to`, `source_file_id`, `severity`, `zone`, `entity_id`, `page`, `size` et `sort` (ELK-23) ; chaque requête est tracée dans la collection Mongo `searches` et consultable via `GET /api/v1/history`.
+Le endpoint `POST /api/v1/upload` valide le format, détecte le type de log, copie le fichier dans `data/inbox/uploads/` avec le statut `ingesting`, puis un polleur Flask interroge Elasticsearch par `source_file_id` pour passer le document à `indexed` dès que `logs_count` événements sont présents (ELK-21). Le endpoint `GET /api/v1/files/<file_id>` retourne les métadonnées, l'aperçu des 10 premières lignes (ELK-20) et le statut d'indexation. Le endpoint `GET /api/v1/search` interroge `sb-logs-*,logs-*` avec `q`, `log_type`, `from`, `to`, `source_file_id`, `severity`, `zone`, `entity_id`, `page`, `size` et `sort` (ELK-23) ; chaque requête est tracée dans la collection Mongo `searches` et consultable via `GET /api/v1/history`. L'endpoint `GET /api/v1/suggest` propose des valeurs réelles issues d'Elasticsearch pendant la saisie, avec repli flou `fuzziness: AUTO`, cache Redis de 30 s et aucune écriture dans l'historique.
 
 Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana), `${MONGODB_PORT:-27017}` (MongoDB sur `127.0.0.1` uniquement). Redis et Logstash restent internes au réseau Docker.
 
@@ -199,11 +199,24 @@ curl -F "file=@/tmp/capteurs_trop_gros.csv;filename=capteurs_trop_gros.csv" loca
 curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/upload
 ```
 
+## Recherche assistée et contraintes d'interface
+
+La page `/search` propose des valeurs indexées pendant la saisie. Le navigateur attend 250 ms, exige au moins 2 caractères, annule les requêtes périmées avec `AbortController` et accepte la navigation au clavier via `role="listbox"`, `aria-activedescendant`, les flèches, Entrée et Échap. Les suggestions proviennent uniquement des champs Elasticsearch réels. Aucune valeur, aucun compteur ni aucun avis n'est inventé dans l'interface.
+
+Le style est volontairement institutionnel : palette neutre, un seul accent bleu, boutons Bootstrap à coin droit, system font, aucun dégradé violet, aucune pilule, aucune image générée, aucune animation de curseur ou de défilement. Les KPI affichent `n/d` lorsqu'une donnée manque, jamais zéro.
+
+La mise en ligne reste subordonnée à quatre éléments : domaine réel avec DNS et TLS, favicon, suppression de tout tag « Made with AI » et pages `/privacy` et `/terms`. Le favicon et les pages légales sont présents. Le tag est absent et vérifié par la CI. Le proxy `proxy` fournit une configuration `server_name ${PUBLIC_DOMAIN}` sous profil Docker, avec `PUBLIC_DOMAIN=localhost` par défaut dans `.env.example`. Il doit être activé et configuré avec un vrai domaine avant publication :
+
+```bash
+docker compose --profile proxy up -d proxy
+curl localhost:8088/health
+```
+
 ## Vérification ELK-25 à ELK-31
 
 1. Ouvrir `http://localhost:5000/` : les 5 KPI et les graphiques Chart.js se chargent depuis `/api/v1/stats` ; le badge indique si Redis a servi le cache.
 2. Ouvrir `http://localhost:5000/upload` : glisser-déposer un `.csv`, `.json` ou `.txt`, suivre la progression, puis vérifier le `file_id` retourné.
-3. Ouvrir `http://localhost:5000/search`, lancer `temperatur` : la page `/results` affiche 50 résultats par page, le tri, le détail de chaque document et le bouton d'export CSV.
+3. Ouvrir `http://localhost:5000/search`, saisir `temperatur` : des valeurs telles que `temperature` apparaissent sous le champ avant la validation. Appuyer sur Entrée pour lancer la recherche : la page `/results` affiche 50 résultats par page, le tri, le détail de chaque document et le bouton d'export CSV.
 4. Vérifier les endpoints JSON : `/api/v1/stats`, `/api/v1/maintenance/forecast` et `/api/v1/files`.
 5. Créer les data views puis importer le dashboard Kibana :
    ```bash
@@ -212,6 +225,9 @@ curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/u
    ```
    Le dashboard `Smart Building IoT` contient 3 visualisations : température par zone/heure, alertes critiques par jour et énergie temps réel.
 6. Ouvrir une URL inconnue : la page 404 Bootstrap s'affiche ; une URL `/api/v1/...` inconnue renvoie toujours une erreur JSON BNF4.
+7. Ouvrir `/privacy` et `/terms` : les deux pages sont accessibles depuis le pied de page et contiennent des champs à renseigner avant publication.
+8. Vérifier que le favicon est servi sur `/static/favicon.svg` et qu'aucune page n'affiche de tag « Made with AI ».
+9. Vérifier l'autocomplétion au clavier : flèches, Entrée pour sélectionner une suggestion, Échap pour fermer la liste.
 
 Commandes rapides :
 
@@ -220,6 +236,7 @@ python scripts/check_api_contract.py
 curl localhost:5000/
 curl localhost:5000/api/v1/stats
 curl localhost:5000/api/v1/maintenance/forecast
+curl 'localhost:5000/api/v1/suggest?q=temperatur&size=8'
 curl 'localhost:5000/api/v1/logs/export?q=temperatur&size=50' -o /tmp/logs-export.csv
 bash -n kibana/import_dashboard.sh
 ```
@@ -228,4 +245,4 @@ bash -n kibana/import_dashboard.sh
 
 - Port de l'application web : 5000 dans le livrable d'architecture, 8000 dans le sujet. Valeur actuelle : 5000.
 - Version ELK figée à 8.17.0 : le layer de l'image 8.19.0 est corrompu dans le cache Docker local.
-- Durées de vie Redis appliquées : 60 s pour les KPI généraux et les recherches, 10 s pour l'énergie temps réel, 300 s pour les prévisions de maintenance ; seuils ELK-22 fixés dans le pipeline Logstash.
+- Durées de vie Redis appliquées : 60 s pour les KPI généraux, 10 s pour l'énergie temps réel, 300 s pour les prévisions de maintenance et 30 s pour les suggestions ; la recherche complète n'est pas mise en cache. Seuils ELK-22 fixés dans le pipeline Logstash.
