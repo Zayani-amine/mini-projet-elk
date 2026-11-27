@@ -85,6 +85,28 @@
     if (element) element.classList.toggle('d-none', !visible);
   };
 
+  const criticalAlertCount = rows => {
+    const values = asArray(rows);
+    if (!values.length) return null;
+    return numberOr(values[values.length - 1].count, 0);
+  };
+
+  const updateAlertState = count => {
+    const active = Number.isFinite(count) && count > 0;
+    ['alerts-dot', 'alerts-chart-dot', 'alerts-headline-dot', 'alerts-headline', 'alerts-action', 'nav-alert-dot'].forEach(id => show(id, active));
+    if (count === null || !Number.isFinite(count)) {
+      setText('alert-status-global', 'Statut des alertes indisponible.');
+    } else if (active) {
+      setText('alert-status-global', formatInteger(count) + ' alertes critiques au dernier jour relevé.');
+    } else {
+      setText('alert-status-global', 'Aucune alerte critique au dernier jour relevé.');
+    }
+    const shortcut = document.getElementById('alerts-shortcut');
+    if (shortcut) {
+      shortcut.setAttribute('aria-label', active ? 'Voir ' + formatInteger(count) + ' alertes critiques' : 'Ouvrir la recherche, aucune alerte critique');
+    }
+  };
+
   const makeChart = (id, config, hasData) => {
     const canvas = document.getElementById(id);
     if (!canvas) return;
@@ -97,8 +119,8 @@
   if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.font) {
     Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
     Chart.defaults.font.size = 12;
-    Chart.defaults.color = '#5b6775';
-    Chart.defaults.borderColor = '#e3e8ef';
+    Chart.defaults.color = '#dbe7f5';
+    Chart.defaults.borderColor = 'rgba(226, 232, 240, 0.12)';
     if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
       Chart.defaults.plugins.legend.labels = Object.assign({}, Chart.defaults.plugins.legend.labels, { boxWidth: 12 });
     }
@@ -121,14 +143,15 @@
       };
       const temperatureAverage = average(temperatures.map(row => numberOr(row && row.avg, NaN)));
       const occupancyAverage = average(occupancy.map(row => numberOr(row && row.rate, NaN)));
-      const lastAlert = alerts.length ? alerts[alerts.length - 1] : null;
+      const alertCount = criticalAlertCount(alerts);
       const lastEnergy = energy.length ? energy[energy.length - 1] : null;
 
       setText('kpi-temperature', temperatureAverage === null ? 'n/d' : formatNumber(temperatureAverage) + ' °C');
-      setText('kpi-alerts', lastAlert ? formatInteger(numberOr(lastAlert.count, 0)) : 'n/d');
+      setText('kpi-alerts', alertCount === null ? 'n/d' : formatInteger(alertCount));
       setText('kpi-energy', lastEnergy ? formatNumber(numberOr(lastEnergy.total, 0)) + ' kWh' : 'n/d');
       setText('kpi-occupancy', occupancyAverage === null ? 'n/d' : formatNumber(occupancyAverage) + ' %');
       setText('kpi-maintenance', formatInteger(maintenance.length));
+      updateAlertState(alertCount);
 
       const badge = document.getElementById('cache-badge');
       if (badge) {
@@ -141,8 +164,8 @@
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { color: '#e3e8ef' }, ticks: { color: '#5b6775' } },
-          y: { beginAtZero: true, grid: { color: '#e3e8ef' }, ticks: { color: '#5b6775' } }
+          x: { grid: { color: 'rgba(226, 232, 240, 0.12)' }, ticks: { color: '#c2d0e4' } },
+          y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.12)' }, ticks: { color: '#c2d0e4' } }
         }
       };
 
@@ -153,17 +176,17 @@
           datasets: [{
             label: 'Température (°C)',
             data: temperatures.map(row => numberOr(row && row.avg, 0)),
-            backgroundColor: '#0d6efd',
+            backgroundColor: '#38bdf8',
             borderRadius: 6
           }]
         },
         options: Object.assign({}, axisOptions, {
           scales: {
-            x: { grid: { color: '#e3e8ef' }, ticks: { color: '#5b6775' } },
+            x: { grid: { color: 'rgba(226, 232, 240, 0.12)' }, ticks: { color: '#c2d0e4' } },
             y: {
               beginAtZero: true,
-              grid: { color: '#e3e8ef' },
-              ticks: { color: '#5b6775' },
+              grid: { color: 'rgba(226, 232, 240, 0.12)' },
+              ticks: { color: '#c2d0e4' },
               title: { display: true, text: '°C' }
             }
           }
@@ -177,9 +200,9 @@
           datasets: [{
             label: 'Alertes critiques',
             data: alerts.map(row => numberOr(row && row.count, 0)),
-            borderColor: '#dc3545',
-            backgroundColor: 'rgba(220, 53, 69, 0.15)',
-            pointBackgroundColor: '#dc3545',
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.2)',
+            pointBackgroundColor: '#ef4444',
             pointRadius: 2,
             borderWidth: 2,
             fill: true,
@@ -196,9 +219,9 @@
           datasets: [{
             label: 'Énergie (kWh)',
             data: energy.map(row => numberOr(row && row.total, 0)),
-            borderColor: '#198754',
-            backgroundColor: 'rgba(25, 135, 84, 0.15)',
-            pointBackgroundColor: '#198754',
+            borderColor: '#34d399',
+            backgroundColor: 'rgba(52, 211, 153, 0.2)',
+            pointBackgroundColor: '#34d399',
             pointRadius: 2,
             borderWidth: 2,
             fill: true,
@@ -215,9 +238,9 @@
           datasets: [{
             label: 'Taux d’occupation (%)',
             data: occupancy.map(row => numberOr(row && row.rate, 0)),
-            backgroundColor: ['#174a7e', '#198754', '#fd7e14', '#6c757d'],
+            backgroundColor: ['#38bdf8', '#34d399', '#fbbf24', '#94a3b8'],
             borderWidth: 1,
-            borderColor: '#ffffff'
+            borderColor: '#07111f'
           }]
         },
         options: {
@@ -238,7 +261,7 @@
           datasets: [{
             label: 'Usure (%)',
             data: maintenance.map(row => numberOr(row && row.wear_level, 0)),
-            backgroundColor: '#fd7e14',
+            backgroundColor: '#fbbf24',
             borderRadius: 6
           }]
         },
@@ -264,10 +287,10 @@
             x: {
               beginAtZero: true,
               max: 100,
-              grid: { color: '#e3e8ef' },
-              ticks: { color: '#5b6775' }
+              grid: { color: 'rgba(226, 232, 240, 0.12)' },
+              ticks: { color: '#c2d0e4' }
             },
-            y: { grid: { display: false }, ticks: { color: '#5b6775' } }
+            y: { grid: { display: false }, ticks: { color: '#c2d0e4' } }
           }
         }
       }, maintenance.length > 0);
@@ -297,6 +320,7 @@
       setText('dashboard-error-message', ' ' + error.message);
       show('dashboard-error', true);
       ['kpi-temperature', 'kpi-alerts', 'kpi-energy', 'kpi-occupancy', 'kpi-maintenance'].forEach(id => setText(id, 'n/d'));
+      updateAlertState(null);
     } finally {
       show('dashboard-loading', false);
     }
@@ -700,7 +724,14 @@
           appendCell(tr, row.entity_id || row.sensor_id || row.meter_id || row.room_id);
           appendCell(tr, row.zone);
           appendCell(tr, row.message || row.rule || row.measure || row.equipment_type || row.predicted_failure || row.energy_type);
-          appendCell(tr, row.severity);
+          const severityCell = appendCell(tr, row.severity);
+          if (String(row.severity || '').toLowerCase() === 'critical') {
+            severityCell.classList.add('severity-critical');
+            const dot = document.createElement('span');
+            dot.className = 'status-dot status-dot-inline';
+            dot.setAttribute('aria-hidden', 'true');
+            severityCell.prepend(dot);
+          }
 
           const actionCell = appendCell(tr, '');
           actionCell.className = 'text-end';
@@ -757,8 +788,19 @@
     }
   }
 
+  async function initNavAlerts() {
+    if (document.getElementById('dashboard-loading')) return;
+    try {
+      const data = await fetchJson('/api/v1/stats');
+      updateAlertState(criticalAlertCount(data.critical_alerts_daily));
+    } catch (error) {
+      setText('alert-status-global', 'Statut des alertes indisponible.');
+    }
+  }
+
   const start = () => {
     initDashboard();
+    initNavAlerts();
     initUpload();
     initSearch();
     initResults();

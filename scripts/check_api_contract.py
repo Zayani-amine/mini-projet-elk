@@ -91,10 +91,17 @@ for path in ("/", "/upload", "/search", "/results", "/privacy", "/terms"):
         raise SystemExit("%s is missing the favicon link" % path)
     if 'href="/privacy"' not in body or 'href="/terms"' not in body:
         raise SystemExit("%s is missing the legal links" % path)
+    if 'alert-status-global' not in body:
+        raise SystemExit("%s is missing the alert status region" % path)
     if "Made with AI" in body or "Made with IA" in body:
         raise SystemExit("%s contains a Made with AI tag" % path)
     if "\u2014" in body:
         raise SystemExit("%s contains an em dash" % path)
+
+dashboard_body = page_bodies["/"]
+for marker in ("alerts-dot", "alerts-chart-dot", "alerts-headline-dot", "nav-alert-dot"):
+    if marker not in dashboard_body:
+        raise SystemExit("Dashboard is missing alert dot marker: %s" % marker)
 
 search_body = page_bodies["/search"]
 for marker in ("suggest-list", 'aria-autocomplete="list"', 'aria-controls="suggest-list"'):
@@ -192,7 +199,18 @@ with open("app/static/js/app.js", encoding="utf-8") as handle:
 for marker in ("/api/v1/suggest", "AbortController", "aria-activedescendant"):
     if marker not in frontend_js:
         raise SystemExit("Frontend typeahead is missing: %s" % marker)
+for marker in ("updateAlertState", "criticalAlertCount", "alert-status-global", "severity-critical"):
+    if marker not in frontend_js:
+        raise SystemExit("Frontend alert intelligence is missing: %s" % marker)
 if "\u2014" in frontend_js:
     raise SystemExit("Frontend JavaScript contains an em dash")
+
+with open("app/static/css/app.css", encoding="utf-8") as handle:
+    styles = handle.read()
+for marker in ("--elk-glass", "backdrop-filter", ".status-dot"):
+    if marker not in styles:
+        raise SystemExit("Glassmorphism style is missing: %s" % marker)
+if "gradient(" in styles.lower() or "purple" in styles.lower():
+    raise SystemExit("Glassmorphism style contains a forbidden background")
 
 print("API_CONTRACT_OK paths=%d" % len(paths))
