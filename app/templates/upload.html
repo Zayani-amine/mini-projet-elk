@@ -8,27 +8,27 @@
 
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <div id="upload-dropzone" class="dropzone text-center rounded-3 p-5">
+        <div id="upload-dropzone" class="dropzone text-center rounded-3 p-5" role="button" tabindex="0" aria-label="Choisir un fichier ou le déposer ici" aria-describedby="upload-formats upload-file-name">
           <div class="upload-icon mb-3" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
               <path d="M12 16V4 M7 9l5-5 5 5 M4 20h16"></path>
             </svg>
           </div>
           <p class="fs-5 fw-semibold mb-1">Glissez-déposez votre fichier ici</p>
-          <p class="text-muted small mb-3">Formats acceptés : .csv, .json, .txt. 100 Mo maximum.</p>
+          <p id="upload-formats" class="text-muted small mb-3">Formats acceptés : .csv, .json, .txt. 100 Mo maximum.</p>
           <button id="upload-pick" type="button" class="btn btn-primary">Choisir un fichier</button>
-          <input id="upload-file" name="file" type="file" accept=".csv,.json,.txt" hidden>
-          <div id="upload-file-name" class="mt-3 small text-muted">Aucun fichier sélectionné</div>
+          <input id="upload-file" name="file" type="file" accept=".csv,.json,.txt" aria-describedby="upload-formats" hidden>
+          <div id="upload-file-name" class="mt-3 small text-muted" role="status" aria-live="polite">Aucun fichier sélectionné</div>
         </div>
 
-        <div id="upload-error" class="alert alert-danger d-none mt-3 mb-0" role="alert"></div>
+        <div id="upload-error" class="alert alert-danger d-none mt-3 mb-0" role="alert" aria-live="assertive"></div>
 
         <div id="upload-progress-wrap" class="mt-4 d-none">
           <div class="d-flex justify-content-between small text-muted mb-1">
             <span>Envoi en cours…</span>
             <span id="upload-progress-text">0 %</span>
           </div>
-          <div class="progress" role="progressbar" aria-label="Progression de l'envoi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="progress" role="progressbar" aria-label="Progression de l'envoi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0 %">
             <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
           </div>
         </div>

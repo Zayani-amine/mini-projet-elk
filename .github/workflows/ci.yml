@@ -79,6 +79,21 @@ jobs:
           grep -q 'formatAge' app/static/js/app.js
           grep -q 'kpi-energy-detail' app/templates/index.html
           grep -q 'document(s)' app/static/js/app.js
+          grep -q 'setFieldError' app/static/js/app.js
+          grep -q 'renderChartData' app/static/js/app.js
+          grep -q 'MAX_UPLOAD_BYTES' app/static/js/app.js
+          grep -q 'chart-empty-message' app/static/js/app.js
+          grep -q 'Aucun document pour ces critères.' app/static/js/app.js
+          grep -q 'class="skip-link"' app/templates/base.html
+          grep -q 'id="main-content"' app/templates/base.html
+          grep -q 'dashboard-retry' app/templates/index.html
+          grep -q 'chart-occupancy-data' app/templates/index.html
+          grep -q 'suggest-status' app/templates/search.html
+          grep -q 'date-error' app/templates/search.html
+          grep -q 'results-retry' app/templates/results.html
+          grep -q 'aria-valuetext' app/templates/upload.html
+          grep -q '.skip-link' app/static/css/app.css
+          grep -q 'prefers-reduced-motion' app/static/css/app.css
           ! grep -Rqi 'temps réel' app/templates app/static/js/app.js
           ! grep -Rq 'résultat(s)' app/templates app/static/js/app.js
           ! grep -Rq 'occurrence(s)' app/templates app/static/js/app.js

@@ -95,6 +95,8 @@ for path in ("/", "/upload", "/search", "/results", "/privacy", "/terms"):
         raise SystemExit("%s is missing the legal links" % path)
     if 'alert-status-global' not in body:
         raise SystemExit("%s is missing the alert status region" % path)
+    if 'class="skip-link"' not in body or 'id="main-content"' not in body or 'tabindex="-1"' not in body:
+        raise SystemExit("%s is missing the skip link target" % path)
     if "Made with AI" in body or "Made with IA" in body:
         raise SystemExit("%s contains a Made with AI tag" % path)
     if "\u2014" in body:
@@ -106,9 +108,29 @@ for marker in ("alerts-dot", "alerts-chart-dot", "alerts-headline-dot", "alerts-
         raise SystemExit("Dashboard is missing alert dot marker: %s" % marker)
 
 search_body = page_bodies["/search"]
-for marker in ("suggest-list", 'aria-autocomplete="list"', 'aria-controls="suggest-list"'):
+for marker in (
+    "suggest-list",
+    'aria-autocomplete="list"',
+    'aria-controls="suggest-list"',
+    "novalidate",
+    "suggest-status",
+    "date-error",
+    "q-error",
+):
     if marker not in search_body:
-        raise SystemExit("Search page is missing typeahead marker: %s" % marker)
+        raise SystemExit("Search page is missing typeahead or validation marker: %s" % marker)
+
+upload_body = page_bodies["/upload"]
+for marker in (
+    'role="button"',
+    'aria-describedby="upload-formats upload-file-name"',
+    'aria-live="polite"',
+    "upload-formats",
+    "upload-file-name",
+    "upload-progress-wrap",
+):
+    if marker not in upload_body:
+        raise SystemExit("Upload page is missing accessibility marker: %s" % marker)
 
 missing_page = client.get("/cette-page-nexiste-pas")
 if missing_page.status_code != 404 or "Page introuvable" not in missing_page.get_data(as_text=True):
@@ -279,16 +301,62 @@ for marker in (
 ):
     if marker not in dashboard_html:
         raise SystemExit("Dashboard template semantic marker is missing: %s" % marker)
-for marker in ("critical_alerts_24h", "global_avg", "total_kwh", "last_reading_at", "age_seconds", "stale", "formatAge", "document(s)"):
+for marker in (
+    "critical_alerts_24h",
+    "global_avg",
+    "total_kwh",
+    "last_reading_at",
+    "age_seconds",
+    "stale",
+    "formatAge",
+    "document(s)",
+    "setFieldError",
+    "renderChartData",
+    "chart-empty-message",
+    "MAX_UPLOAD_BYTES",
+    "dashboard-retry",
+    "results-retry",
+    "aria-valuetext",
+    "Aucun document pour ces critères.",
+):
     if marker not in frontend_js:
         raise SystemExit("Frontend semantic marker is missing: %s" % marker)
-for forbidden in ("temps réel", "Dernière minute relevée", "Dernier jour relevé", "résultat(s)", "occurrence(s)"):
+for marker in (
+    "dashboard-retry",
+    "chart-legend",
+    "Voir les valeurs du graphique",
+    'role="img"',
+    'scope="col"',
+    "chart-occupancy-data",
+):
+    if marker not in dashboard_html:
+        raise SystemExit("Dashboard accessibility marker is missing: %s" % marker)
+for marker in (
+    "results-retry",
+    '<caption class="visually-hidden">',
+    'scope="col"',
+    'role="status"',
+    "page-label",
+):
+    if marker not in results_html:
+        raise SystemExit("Results accessibility marker is missing: %s" % marker)
+for forbidden in ("temps réel", "Dernière minute relevée", "Dernier jour relevé", "résultat(s)", "occurrence(s)", "Aucun résultat pour ces critères."):
     if forbidden in frontend_js or forbidden in dashboard_html or forbidden in results_html:
         raise SystemExit("Misleading frontend wording remains: %s" % forbidden)
 
 with open("app/static/css/app.css", encoding="utf-8") as handle:
     styles = handle.read()
-for marker in ("color-scheme: light", "--elk-surface", "--elk-radius-card", ".status-dot"):
+for marker in (
+    "color-scheme: light",
+    "--elk-surface",
+    "--elk-radius-card",
+    ".status-dot",
+    ".skip-link",
+    ".chart-empty-message",
+    ".chart-table",
+    ":focus-visible",
+    "prefers-reduced-motion",
+):
     if marker not in styles:
         raise SystemExit("Modern light style is missing: %s" % marker)
 lowered_styles = styles.lower()

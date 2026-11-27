@@ -22,6 +22,13 @@
 
   const formatInteger = value => formatNumber(value, 0);
 
+  const formatValue = (value, unit) => {
+    if (value === null || value === undefined || value === '') return 'n/d';
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 'n/d';
+    return formatNumber(number) + (unit ? ' ' + unit : '');
+  };
+
   const formatDate = value => {
     if (!value) return 'n/d';
     const date = new Date(value);
@@ -109,6 +116,62 @@
     if (element) element.classList.toggle('d-none', !visible);
   };
 
+  const setFieldError = (input, errorId, message) => {
+    if (input) {
+      input.classList.toggle('is-invalid', Boolean(message));
+      input.setAttribute('aria-invalid', message ? 'true' : 'false');
+    }
+    setText(errorId, message || '');
+    show(errorId, Boolean(message));
+  };
+
+  const appendCaption = (table, text) => {
+    const caption = document.createElement('caption');
+    caption.className = 'visually-hidden';
+    caption.textContent = text;
+    table.appendChild(caption);
+  };
+
+  const renderChartData = (id, rows) => {
+    const target = document.getElementById(id);
+    if (!target) return;
+    target.replaceChildren();
+    if (!rows.length) {
+      const empty = document.createElement('p');
+      empty.className = 'small text-muted mb-0';
+      empty.textContent = 'Aucune donnée disponible.';
+      target.appendChild(empty);
+      return;
+    }
+    const table = document.createElement('table');
+    table.className = 'table table-sm chart-table mb-0';
+    appendCaption(table, 'Valeurs du graphique');
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    ['Libellé', 'Valeur'].forEach(label => {
+      const th = document.createElement('th');
+      th.scope = 'col';
+      th.textContent = label;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      const label = document.createElement('th');
+      label.scope = 'row';
+      label.textContent = row.label;
+      const value = document.createElement('td');
+      value.textContent = row.value;
+      tr.appendChild(label);
+      tr.appendChild(value);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    target.appendChild(table);
+  };
+
   const criticalAlertCount = rows => {
     const values = asArray(rows);
     if (!values.length) return null;
@@ -127,12 +190,22 @@
     }
   };
 
-  const makeChart = (id, config, hasData) => {
+  const makeChart = (id, config, hasData, dataId, dataRows) => {
     const canvas = document.getElementById(id);
     if (!canvas) return;
     const wrapper = canvas.closest('.chart-wrap');
     const enabled = typeof Chart !== 'undefined';
-    if (wrapper) wrapper.classList.toggle('chart-empty', !hasData || !enabled);
+    renderChartData(dataId, dataRows);
+    if (wrapper) {
+      let empty = wrapper.querySelector('.chart-empty-message');
+      if (!empty) {
+        empty = document.createElement('p');
+        empty.className = 'chart-empty-message small text-muted';
+        wrapper.appendChild(empty);
+      }
+      empty.textContent = enabled ? 'Aucune donnée disponible pour cette période.' : 'Graphiques indisponibles.';
+      wrapper.classList.toggle('chart-empty', !hasData || !enabled);
+    }
     if (enabled) new Chart(canvas, config);
   };
 
@@ -148,6 +221,8 @@
 
   async function initDashboard() {
     if (!document.getElementById('dashboard-loading')) return;
+    const retry = document.getElementById('dashboard-retry');
+    if (retry) retry.onclick = () => initDashboard();
     show('dashboard-loading', true);
     show('dashboard-error', false);
     try {
@@ -223,17 +298,26 @@
           y: { beginAtZero: true, grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } }
         }
       };
+      const temperatureLabels = temperatures.map(row => (row && row.zone) || 'n/d');
+      const alertLabels = alerts.map(row => String((row && row.hour) || (row && row.day) || '').slice(11, 16) || 'n/d');
+      const energyBuckets = asArray(energy.buckets).filter(row => String(row && row.unit).toLowerCase() === 'kwh');
+      const energyLabels = energyBuckets.map(row => String((row && row.minute) || '').slice(11, 16) || 'n/d');
+      const occupancyLabels = occupancy.map(row => (row && row.room) || 'n/d');
+      const maintenanceLabels = maintenance.map(row => (row && row.equipment_id) || 'n/d');
       const temperatureValues = temperatures.map(row => numberOr(row && row.avg, null));
       const alertValues = alerts.map(row => numberOr(row && row.count, null));
-      const energyBuckets = asArray(energy.buckets).filter(row => String(row && row.unit).toLowerCase() === 'kwh');
       const energyValues = energyBuckets.map(row => numberOr(row && row.total, null));
       const occupancyValues = occupancy.map(row => numberOr(row && row.rate, null));
       const maintenanceValues = maintenance.map(row => numberOr(row && row.wear_level, null));
+      const chartRows = (labels, values, unit, formatter) => labels.map((label, index) => ({
+        label: label,
+        value: formatter ? formatter(values[index]) : formatValue(values[index], unit)
+      }));
 
       makeChart('chart-temperature', {
         type: 'bar',
         data: {
-          labels: temperatures.map(row => (row && row.zone) || 'n/d'),
+          labels: temperatureLabels,
           datasets: [{
             label: 'Température (°C)',
             data: temperatureValues,
@@ -252,12 +336,12 @@
             }
           }
         })
-      }, hasFinite(temperatureValues));
+      }, hasFinite(temperatureValues), 'chart-temperature-data', chartRows(temperatureLabels, temperatureValues, '°C'));
 
       makeChart('chart-alerts', {
         type: 'line',
         data: {
-          labels: alerts.map(row => String((row && row.hour) || (row && row.day) || '').slice(11, 16) || 'n/d'),
+          labels: alertLabels,
           datasets: [{
             label: 'Alertes critiques (24 h)',
             data: alertValues,
@@ -271,12 +355,12 @@
           }]
         },
         options: axisOptions
-      }, hasFinite(alertValues));
+      }, hasFinite(alertValues), 'chart-alerts-data', chartRows(alertLabels, alertValues, '', value => formatInteger(value)));
 
       makeChart('chart-energy', {
         type: 'line',
         data: {
-          labels: energyBuckets.map(row => (row && row.minute) || 'n/d'),
+          labels: energyLabels,
           datasets: [{
             label: 'Énergie (kWh) · 1 min',
             data: energyValues,
@@ -290,12 +374,12 @@
           }]
         },
         options: axisOptions
-      }, hasFinite(energyValues));
+      }, hasFinite(energyValues), 'chart-energy-data', chartRows(energyLabels, energyValues, 'kWh'));
 
       makeChart('chart-occupancy', {
         type: 'doughnut',
         data: {
-          labels: occupancy.map(row => (row && row.room) || 'n/d'),
+          labels: occupancyLabels,
           datasets: [{
             label: 'Taux d’occupation (%)',
             data: occupancyValues,
@@ -313,12 +397,12 @@
             tooltip: { callbacks: { label: context => context.label + ' : ' + formatNumber(context.parsed) + ' %' } }
           }
         }
-      }, hasFinite(occupancyValues));
+      }, hasFinite(occupancyValues), 'chart-occupancy-data', chartRows(occupancyLabels, occupancyValues, '%'));
 
       makeChart('chart-maintenance', {
         type: 'bar',
         data: {
-          labels: maintenance.map(row => (row && row.equipment_id) || 'n/d'),
+          labels: maintenanceLabels,
           datasets: [{
             label: 'Usure (%)',
             data: maintenanceValues,
@@ -354,7 +438,13 @@
             y: { grid: { display: false }, ticks: { color: '#6e6e73' } }
           }
         }
-      }, hasFinite(maintenanceValues));
+      }, hasFinite(maintenanceValues), 'chart-maintenance-data', maintenanceLabels.map((label, index) => {
+        const row = maintenance[index] || {};
+        return {
+          label: label,
+          value: formatValue(maintenanceValues[index], '%') + ' · ' + formatDate(row.estimated_due_date)
+        };
+      }));
 
       const maintenanceBody = document.getElementById('maintenance-body');
       if (maintenanceBody) {
@@ -388,6 +478,8 @@
     }
   }
 
+  const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
   function initUpload() {
     const input = document.getElementById('upload-file');
     const zone = document.getElementById('upload-dropzone');
@@ -411,19 +503,38 @@
     const choose = file => {
       setError('');
       show('upload-result', false);
-      if (!file || !allowed.test(file.name)) {
+      if (!file) {
+        selected = null;
+        setText('upload-file-name', 'Aucun fichier sélectionné');
+        setBusy(false);
+        return;
+      }
+      if (!allowed.test(file.name)) {
         selected = null;
         input.value = '';
-        setText('upload-file-name', file ? 'Format non accepté : ' + file.name : 'Aucun fichier sélectionné');
-        if (file) setError('Formats autorisés : .csv, .json et .txt.');
+        setText('upload-file-name', 'Format non accepté : ' + file.name);
+        setError('Formats autorisés : .csv, .json et .txt.');
+        setBusy(false);
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        selected = null;
+        input.value = '';
+        setText('upload-file-name', 'Fichier trop volumineux : ' + file.name);
+        setError('Taille maximale : 100 Mo.');
         setBusy(false);
         return;
       }
       selected = file;
-      setText('upload-file-name', file.name);
+      setText('upload-file-name', file.name + ' · ' + formatNumber(file.size / 1024 / 1024) + ' Mo');
       setBusy(false);
     };
 
+    zone.addEventListener('keydown', event => {
+      if (event.target !== zone || (event.key !== 'Enter' && event.key !== ' ')) return;
+      event.preventDefault();
+      input.click();
+    });
     pick.addEventListener('click', () => input.click());
     input.addEventListener('change', () => choose(input.files && input.files[0]));
 
@@ -460,7 +571,10 @@
         setText('upload-progress-text', value + ' %');
         if (bar) bar.style.width = value + '%';
         const wrapper = document.querySelector('#upload-progress-wrap .progress');
-        if (wrapper) wrapper.setAttribute('aria-valuenow', String(value));
+        if (wrapper) {
+          wrapper.setAttribute('aria-valuenow', String(value));
+          wrapper.setAttribute('aria-valuetext', value + ' %');
+        }
       };
       const form = new FormData();
       form.append('file', selected, selected.name);
@@ -562,6 +676,7 @@
       list.classList.add('d-none');
       input.setAttribute('aria-expanded', 'false');
       input.removeAttribute('aria-activedescendant');
+      setText('suggest-status', '');
       active = -1;
       items = [];
     };
@@ -601,6 +716,7 @@
       active = -1;
       if (!items.length) {
         hide();
+        setText('suggest-status', 'Aucune valeur proposée.');
         return;
       }
       items.forEach((item, index) => {
@@ -625,6 +741,7 @@
       });
       list.classList.remove('d-none');
       input.setAttribute('aria-expanded', 'true');
+      setText('suggest-status', items.length + ' valeur(s) proposée(s).');
     };
 
     const fetchSuggestions = async term => {
@@ -694,6 +811,37 @@
     form.addEventListener('submit', event => {
       event.preventDefault();
       const values = new FormData(form);
+      const fromInput = document.getElementById('from');
+      const toInput = document.getElementById('to');
+      const fromValue = String(values.get('from') || '');
+      const toValue = String(values.get('to') || '');
+      const fromTime = fromValue ? new Date(fromValue).getTime() : null;
+      const toTime = toValue ? new Date(toValue).getTime() : null;
+      if (fromTime !== null && Number.isNaN(fromTime)) {
+        setFieldError(fromInput, 'date-error', 'La date de début est invalide.');
+        if (fromInput) fromInput.focus();
+        return;
+      }
+      if (toTime !== null && Number.isNaN(toTime)) {
+        setFieldError(toInput, 'date-error', 'La date de fin est invalide.');
+        if (toInput) toInput.focus();
+        return;
+      }
+      if (fromTime !== null && toTime !== null && fromTime > toTime) {
+        setFieldError(toInput, 'date-error', 'La date de fin doit être postérieure à la date de début.');
+        if (toInput) toInput.focus();
+        return;
+      }
+      setFieldError(fromInput, 'date-error', '');
+      setFieldError(toInput, 'date-error', '');
+      const query = String(values.get('q') || '').trim();
+      const queryInput = document.getElementById('q');
+      if (query.length === 1) {
+        setFieldError(queryInput, 'q-error', 'Saisissez au moins 2 caractères.');
+        if (queryInput) queryInput.focus();
+        return;
+      }
+      setFieldError(queryInput, 'q-error', '');
       const params = buildQuery({
         q: values.get('q'),
         log_type: values.get('log_type'),
@@ -713,6 +861,9 @@
   async function initResults() {
     const body = document.getElementById('results-body');
     if (!body) return;
+
+    const retry = document.getElementById('results-retry');
+    if (retry) retry.onclick = () => window.location.reload();
 
     const params = new URLSearchParams(window.location.search);
     const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
@@ -761,7 +912,8 @@
       setText('results-total', formatInteger(data.total));
       setText('results-took', data.took_ms !== undefined ? '· ' + formatInteger(data.took_ms) + ' ms' : '');
       setText('results-count', rows.length + ' document(s) affiché(s)');
-      setText('page-label', 'Page ' + current);
+      const totalPages = Math.max(1, Math.ceil(Number(data.total || 0) / size));
+      setText('page-label', 'Page ' + current + ' sur ' + totalPages);
 
       const appendCell = (tr, value) => {
         const td = document.createElement('td');
@@ -773,7 +925,7 @@
       body.replaceChildren();
       if (!rows.length) {
         const tr = document.createElement('tr');
-        const td = appendCell(tr, 'Aucun résultat pour ces critères.');
+        const td = appendCell(tr, 'Aucun document pour ces critères.');
         td.colSpan = 7;
         td.className = 'text-center text-muted py-4';
         body.appendChild(tr);
@@ -802,6 +954,7 @@
           toggle.type = 'button';
           toggle.className = 'btn btn-sm btn-outline-primary';
           toggle.textContent = 'Détails';
+          toggle.setAttribute('aria-label', 'Afficher les détails du document ' + (index + 1));
           toggle.setAttribute('aria-controls', detailId);
           toggle.setAttribute('aria-expanded', 'false');
           actionCell.appendChild(toggle);
@@ -814,6 +967,8 @@
           detailCell.colSpan = 7;
           const pre = document.createElement('pre');
           pre.className = 'json-block mb-0';
+          pre.tabIndex = 0;
+          pre.setAttribute('aria-label', 'Données JSON du document ' + (index + 1));
           pre.textContent = JSON.stringify(row, null, 2);
           detailCell.appendChild(pre);
           detailRow.appendChild(detailCell);
@@ -823,6 +978,7 @@
             const hidden = detailRow.classList.toggle('d-none');
             toggle.setAttribute('aria-expanded', String(!hidden));
             toggle.textContent = hidden ? 'Détails' : 'Masquer';
+            toggle.setAttribute('aria-label', (hidden ? 'Afficher' : 'Masquer') + ' les détails du document ' + (index + 1));
           });
         });
       }

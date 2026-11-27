@@ -13,8 +13,9 @@
   <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body class="d-flex flex-column min-vh-100">
+  <a class="skip-link" href="#main-content">Aller au contenu principal</a>
   <span id="alert-status-global" class="visually-hidden" role="status" aria-atomic="true"></span>
-  <nav class="navbar navbar-expand-lg navbar-dark">
+  <nav class="navbar navbar-expand-lg navbar-dark" aria-label="Navigation principale">
     <div class="container">
       <a class="navbar-brand fw-semibold" href="/"><span class="brand-mark">ELK</span> Smart Building</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Afficher le menu">
@@ -22,17 +23,17 @@
       </button>
       <div class="collapse navbar-collapse" id="mainNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/">Accueil</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/upload' else '' }}" href="/upload">Upload</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active' if request.path in ('/search', '/results') else '' }}" href="/search">Recherche</a></li>
-          <li class="nav-item"><a class="nav-link" href="/docs" target="_blank" rel="noopener">API docs</a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ kibana_url }}" target="_blank" rel="noopener">Kibana</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/" {{ 'aria-current=page' if request.path == '/' else '' }}>Accueil</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/upload' else '' }}" href="/upload" {{ 'aria-current=page' if request.path == '/upload' else '' }}>Upload</a></li>
+          <li class="nav-item"><a class="nav-link {{ 'active' if request.path in ('/search', '/results') else '' }}" href="/search" {{ 'aria-current=page' if request.path in ('/search', '/results') else '' }}>Recherche</a></li>
+          <li class="nav-item"><a class="nav-link" href="/docs" target="_blank" rel="noopener">API docs <span class="visually-hidden">(ouvre un nouvel onglet)</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ kibana_url }}" target="_blank" rel="noopener">Kibana <span class="visually-hidden">(ouvre un nouvel onglet)</span></a></li>
         </ul>
       </div>
     </div>
   </nav>
 
-  <main class="container flex-grow-1 py-4">
+  <main id="main-content" class="container flex-grow-1 py-4" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 

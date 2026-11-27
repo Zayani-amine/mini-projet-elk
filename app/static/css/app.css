@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --elk-ink: #1d1d1f;
-  --elk-muted: #6e6e73;
+  --elk-muted: #5f5f66;
   --elk-page: #f5f7fa;
   --elk-surface: #ffffff;
   --elk-border: #e5e5ea;
@@ -29,8 +29,24 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid var(--elk-accent);
-  outline-offset: 2px;
+  outline: 3px solid #004999;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  z-index: 2000;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: #ffffff;
+  color: #004999;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 0;
 }
 
 .navbar {
@@ -144,16 +160,53 @@ h2,
 }
 
 .chart-wrap.chart-empty::after {
-  content: "Aucune donnée disponible";
+  content: "";
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
   border: 1px dashed var(--elk-border);
   border-radius: var(--elk-radius-control);
   background: rgba(255, 255, 255, 0.92);
-  color: var(--elk-muted);
-  font-size: 0.9rem;
+}
+
+.chart-empty-message {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: none;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  color: #4a4a50;
+}
+
+.chart-wrap.chart-empty .chart-empty-message {
+  display: grid;
+}
+
+.chart-legend {
+  margin-bottom: 0.5rem;
+  color: #4a4a50;
+  font-size: 0.85rem;
+}
+
+.chart-data {
+  margin-top: 0.75rem;
+  color: #4a4a50;
+  font-size: 0.85rem;
+}
+
+.chart-data summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.chart-data-content {
+  margin-top: 0.5rem;
+}
+
+.chart-table {
+  color: var(--elk-ink);
+  font-size: 0.82rem;
 }
 
 .form-label {
@@ -170,7 +223,7 @@ h2,
 }
 
 .form-control::placeholder {
-  color: #8e8e93;
+  color: #6e6e73;
 }
 
 .form-control:focus,
@@ -378,9 +431,26 @@ h2,
   .kpi-value {
     font-size: 1.75rem;
   }
+
+  .chart-wrap {
+    height: 240px;
+  }
+
+  .chart-wrap-wide {
+    height: 260px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
   .card,
   .alert-link-chip,
   .dropzone {
