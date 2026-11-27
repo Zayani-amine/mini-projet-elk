@@ -4,11 +4,13 @@
   const asArray = value => (Array.isArray(value) ? value : []);
 
   const numberOr = (value, fallback) => {
+    if (value === null || value === undefined || value === '') return fallback;
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
   };
 
   const formatNumber = (value, digits) => {
+    if (value === null || value === undefined || value === '') return 'n/d';
     const number = Number(value);
     if (!Number.isFinite(number)) return 'n/d';
     const fraction = digits === undefined ? 1 : digits;
@@ -34,6 +36,28 @@
     if (!value) return '';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toISOString();
+  };
+
+  const formatAge = seconds => {
+    if (seconds === null || seconds === undefined || !Number.isFinite(Number(seconds))) return 'n/d';
+    let remaining = Math.max(0, Math.floor(Number(seconds)));
+    const days = Math.floor(remaining / 86400);
+    remaining -= days * 86400;
+    const hours = Math.floor(remaining / 3600);
+    remaining -= hours * 3600;
+    const minutes = Math.floor(remaining / 60);
+    remaining -= minutes * 60;
+    const parts = [];
+    if (days) parts.push(days + ' j');
+    if (hours) parts.push(hours + ' h');
+    if (minutes) parts.push(minutes + ' min');
+    parts.push(remaining + ' s');
+    return parts.join(' ');
+  };
+
+  const metaFor = (payload, name) => {
+    const kpis = payload && payload.meta && payload.meta.kpis;
+    return (kpis && kpis[name]) || {};
   };
 
   const buildQuery = values => {
@@ -88,7 +112,7 @@
   const criticalAlertCount = rows => {
     const values = asArray(rows);
     if (!values.length) return null;
-    return numberOr(values[values.length - 1].count, 0);
+    return values.reduce((sum, row) => sum + numberOr(row && row.count, 0), 0);
   };
 
   const updateAlertState = count => {
@@ -97,9 +121,9 @@
     if (count === null || !Number.isFinite(count)) {
       setText('alert-status-global', 'Statut des alertes indisponible.');
     } else if (active) {
-      setText('alert-status-global', formatInteger(count) + ' alertes critiques au dernier jour relevé.');
+      setText('alert-status-global', formatInteger(count) + ' alertes critiques sur les 24 dernières heures.');
     } else {
-      setText('alert-status-global', 'Aucune alerte critique au dernier jour relevé.');
+      setText('alert-status-global', 'Aucune alerte critique sur les 24 dernières heures.');
     }
   };
 
@@ -129,32 +153,67 @@
     try {
       const data = await fetchJson('/api/v1/stats');
       const temperatures = asArray(data.temperature_avg);
-      const alerts = asArray(data.critical_alerts_daily);
-      const energy = asArray(data.energy_realtime);
+      const alerts = asArray(data.critical_alerts_24h || data.critical_alerts_daily);
+      const energy = data.energy_realtime && !Array.isArray(data.energy_realtime) ? data.energy_realtime : {};
       const occupancy = asArray(data.occupancy_rate);
       const maintenance = asArray(data.maintenance_forecast);
-      const average = values => {
-        const clean = values.filter(value => Number.isFinite(value));
-        return clean.length ? clean.reduce((total, value) => total + value, 0) / clean.length : null;
-      };
-      const temperatureAverage = average(temperatures.map(row => numberOr(row && row.avg, NaN)));
-      const occupancyAverage = average(occupancy.map(row => numberOr(row && row.rate, NaN)));
-      const alertCount = criticalAlertCount(alerts);
-      const lastEnergy = energy.length ? energy[energy.length - 1] : null;
+      const temperatureMeta = metaFor(data, 'temperature_avg');
+      const alertsMeta = metaFor(data, 'critical_alerts_24h');
+      const energyMeta = metaFor(data, 'energy_realtime');
+      const occupancyMeta = metaFor(data, 'occupancy_rate');
+      const maintenanceMeta = metaFor(data, 'maintenance_forecast');
+      const temperatureAverage = numberOr(temperatureMeta.global_avg, null);
+      const occupancyAverage = numberOr(occupancyMeta.global_avg, null);
+      const alertCount = alertsMeta.status === 'no_data' ? null : criticalAlertCount(alerts);
+      const energyTotal = numberOr(energy.total_kwh, null);
+      const energyFresh = energy.stale === false && energy.status === 'ok';
+      const energyAge = numberOr(
+        energy.age_seconds !== undefined ? energy.age_seconds : energyMeta.age_seconds,
+        null
+      );
+      const energyReading = energy.last_reading_at || energyMeta.last_reading_at;
+      const energyUnits = asArray(energy.units);
+      const waterUnit = energyUnits.find(unit => String(unit && unit.unit).toLowerCase() === 'm3');
+      let energyDetail = 'Aucune lecture kWh disponible';
+      if (energyReading) {
+        energyDetail = 'Dernier relevé : ' + formatDate(energyReading) + ' · il y a ' + formatAge(energyAge);
+      }
+      if (waterUnit && Number.isFinite(Number(waterUnit.total))) {
+        energyDetail += ' · Eau : ' + formatNumber(waterUnit.total) + ' m3';
+      }
 
-      setText('kpi-temperature', temperatureAverage === null ? 'n/d' : formatNumber(temperatureAverage) + ' °C');
+      setText('kpi-temperature', Number.isFinite(temperatureAverage) ? formatNumber(temperatureAverage) + ' °C' : 'n/d');
       setText('kpi-alerts', alertCount === null ? 'n/d' : formatInteger(alertCount));
-      setText('kpi-energy', lastEnergy ? formatNumber(numberOr(lastEnergy.total, 0)) + ' kWh' : 'n/d');
-      setText('kpi-occupancy', occupancyAverage === null ? 'n/d' : formatNumber(occupancyAverage) + ' %');
-      setText('kpi-maintenance', formatInteger(maintenance.length));
+      setText('kpi-energy', energyFresh && Number.isFinite(energyTotal) ? formatNumber(energyTotal) + ' kWh' : 'n/d');
+      setText('kpi-occupancy', Number.isFinite(occupancyAverage) ? formatNumber(occupancyAverage) + ' %' : 'n/d');
+      setText('kpi-maintenance', maintenanceMeta.status === 'no_data' ? 'n/d' : formatInteger(maintenance.length));
+      setText('kpi-temperature-detail', 'Moyenne globale · 7 j');
+      setText('kpi-alerts-detail', 'Fenêtre glissante · 24 h');
+      setText('kpi-energy-detail', energyDetail);
+      setText('kpi-occupancy-detail', 'Moyenne globale · 7 j');
+      setText('kpi-maintenance-detail', 'Échéances futures');
       updateAlertState(alertCount);
 
       const badge = document.getElementById('cache-badge');
       if (badge) {
-        badge.textContent = data.cache_hit ? 'Cache : données en cache' : 'Cache : données calculées';
-        badge.className = 'badge ' + (data.cache_hit ? 'text-bg-success' : 'text-bg-secondary');
+        const kpiMeta = data.meta && data.meta.kpis ? data.meta.kpis : null;
+        const metaValues = kpiMeta ? Object.values(kpiMeta) : [];
+        const cachedCount = metaValues.filter(item => item && item.cache_hit).length;
+        if (metaValues.length) {
+          const complete = cachedCount === metaValues.length;
+          badge.textContent = complete
+            ? 'Cache : ' + cachedCount + '/' + metaValues.length + ' indicateurs'
+            : cachedCount
+              ? 'Cache : ' + cachedCount + '/' + metaValues.length + ' indicateurs'
+              : 'Cache : données calculées';
+          badge.className = 'badge ' + (complete ? 'text-bg-success' : cachedCount ? 'text-bg-info' : 'text-bg-secondary');
+        } else {
+          badge.textContent = data.cache_hit ? 'Cache : données en cache' : 'Cache : données calculées';
+          badge.className = 'badge ' + (data.cache_hit ? 'text-bg-success' : 'text-bg-secondary');
+        }
       }
 
+      const hasFinite = values => values.some(value => Number.isFinite(value));
       const axisOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -164,6 +223,12 @@
           y: { beginAtZero: true, grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } }
         }
       };
+      const temperatureValues = temperatures.map(row => numberOr(row && row.avg, null));
+      const alertValues = alerts.map(row => numberOr(row && row.count, null));
+      const energyBuckets = asArray(energy.buckets).filter(row => String(row && row.unit).toLowerCase() === 'kwh');
+      const energyValues = energyBuckets.map(row => numberOr(row && row.total, null));
+      const occupancyValues = occupancy.map(row => numberOr(row && row.rate, null));
+      const maintenanceValues = maintenance.map(row => numberOr(row && row.wear_level, null));
 
       makeChart('chart-temperature', {
         type: 'bar',
@@ -171,7 +236,7 @@
           labels: temperatures.map(row => (row && row.zone) || 'n/d'),
           datasets: [{
             label: 'Température (°C)',
-            data: temperatures.map(row => numberOr(row && row.avg, 0)),
+            data: temperatureValues,
             backgroundColor: '#0071e3',
             borderRadius: 6
           }]
@@ -187,15 +252,15 @@
             }
           }
         })
-      }, temperatures.length > 0);
+      }, hasFinite(temperatureValues));
 
       makeChart('chart-alerts', {
         type: 'line',
         data: {
-          labels: alerts.map(row => (row && row.day) || 'n/d'),
+          labels: alerts.map(row => String((row && row.hour) || (row && row.day) || '').slice(11, 16) || 'n/d'),
           datasets: [{
-            label: 'Alertes critiques',
-            data: alerts.map(row => numberOr(row && row.count, 0)),
+            label: 'Alertes critiques (24 h)',
+            data: alertValues,
             borderColor: '#ff3b30',
             backgroundColor: 'rgba(255, 59, 48, 0.12)',
             pointBackgroundColor: '#ff3b30',
@@ -206,15 +271,15 @@
           }]
         },
         options: axisOptions
-      }, alerts.length > 0);
+      }, hasFinite(alertValues));
 
       makeChart('chart-energy', {
         type: 'line',
         data: {
-          labels: energy.map(row => (row && row.minute) || 'n/d'),
+          labels: energyBuckets.map(row => (row && row.minute) || 'n/d'),
           datasets: [{
-            label: 'Énergie (kWh)',
-            data: energy.map(row => numberOr(row && row.total, 0)),
+            label: 'Énergie (kWh) · 1 min',
+            data: energyValues,
             borderColor: '#34c759',
             backgroundColor: 'rgba(52, 199, 89, 0.12)',
             pointBackgroundColor: '#34c759',
@@ -225,7 +290,7 @@
           }]
         },
         options: axisOptions
-      }, energy.length > 0);
+      }, hasFinite(energyValues));
 
       makeChart('chart-occupancy', {
         type: 'doughnut',
@@ -233,7 +298,7 @@
           labels: occupancy.map(row => (row && row.room) || 'n/d'),
           datasets: [{
             label: 'Taux d’occupation (%)',
-            data: occupancy.map(row => numberOr(row && row.rate, 0)),
+            data: occupancyValues,
             backgroundColor: ['#0071e3', '#34c759', '#ff9500', '#8e8e93'],
             borderWidth: 1,
             borderColor: '#ffffff'
@@ -248,7 +313,7 @@
             tooltip: { callbacks: { label: context => context.label + ' : ' + formatNumber(context.parsed) + ' %' } }
           }
         }
-      }, occupancy.length > 0);
+      }, hasFinite(occupancyValues));
 
       makeChart('chart-maintenance', {
         type: 'bar',
@@ -256,7 +321,7 @@
           labels: maintenance.map(row => (row && row.equipment_id) || 'n/d'),
           datasets: [{
             label: 'Usure (%)',
-            data: maintenance.map(row => numberOr(row && row.wear_level, 0)),
+            data: maintenanceValues,
             backgroundColor: '#ff9500',
             borderRadius: 6
           }]
@@ -289,14 +354,14 @@
             y: { grid: { display: false }, ticks: { color: '#6e6e73' } }
           }
         }
-      }, maintenance.length > 0);
+      }, hasFinite(maintenanceValues));
 
       const maintenanceBody = document.getElementById('maintenance-body');
       if (maintenanceBody) {
         maintenanceBody.replaceChildren();
         maintenance.forEach(row => {
           const item = row || {};
-          const wear = numberOr(item.wear_level, NaN);
+          const wear = numberOr(item.wear_level, null);
           const tr = document.createElement('tr');
           [
             item.equipment_id || 'n/d',
@@ -316,6 +381,7 @@
       setText('dashboard-error-message', ' ' + error.message);
       show('dashboard-error', true);
       ['kpi-temperature', 'kpi-alerts', 'kpi-energy', 'kpi-occupancy', 'kpi-maintenance'].forEach(id => setText(id, 'n/d'));
+      ['kpi-temperature-detail', 'kpi-alerts-detail', 'kpi-energy-detail', 'kpi-occupancy-detail', 'kpi-maintenance-detail'].forEach(id => setText(id, 'Indisponible'));
       updateAlertState(null);
     } finally {
       show('dashboard-loading', false);
@@ -466,7 +532,7 @@
         meta.className = 'small text-muted';
         meta.textContent = [
           formatDate(row.created_at),
-          row.results_count !== undefined ? formatInteger(row.results_count) + ' résultat(s)' : '',
+          row.results_count !== undefined ? formatInteger(row.results_count) + ' document(s)' : '',
           row.cache_hit ? 'cache' : ''
         ].filter(Boolean).join(' · ');
         item.appendChild(title);
@@ -548,7 +614,7 @@
         value.textContent = String(item.value || '');
         const meta = document.createElement('div');
         meta.className = 'small text-muted suggest-meta';
-        meta.textContent = (item.field || 'valeur') + ' · ' + formatInteger(item.count) + ' occurrence(s)';
+        meta.textContent = (item.field || 'valeur') + ' · ' + formatInteger(item.count) + ' document(s)';
         option.appendChild(value);
         option.appendChild(meta);
         option.addEventListener('mousedown', event => {
@@ -694,7 +760,7 @@
 
       setText('results-total', formatInteger(data.total));
       setText('results-took', data.took_ms !== undefined ? '· ' + formatInteger(data.took_ms) + ' ms' : '');
-      setText('results-count', rows.length + ' résultat(s) affiché(s)');
+      setText('results-count', rows.length + ' document(s) affiché(s)');
       setText('page-label', 'Page ' + current);
 
       const appendCell = (tr, value) => {
@@ -788,7 +854,9 @@
     if (document.getElementById('dashboard-loading')) return;
     try {
       const data = await fetchJson('/api/v1/stats');
-      updateAlertState(criticalAlertCount(data.critical_alerts_daily));
+      const alertsMeta = metaFor(data, 'critical_alerts_24h');
+      const alerts = asArray(data.critical_alerts_24h || data.critical_alerts_daily);
+      updateAlertState(alertsMeta.status === 'no_data' ? null : criticalAlertCount(alerts));
     } catch (error) {
       setText('alert-status-global', 'Statut des alertes indisponible.');
     }

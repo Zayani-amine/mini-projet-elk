@@ -55,7 +55,7 @@ def _pagination(args):
 @api_v1_dashboard.doc(
     summary="Lire les indicateurs du tableau de bord",
     tags=["Tableau de bord"],
-    description="Agrégations Elasticsearch des 5 KPI, mises en cache Redis.",
+    description="Agrégations Elasticsearch des 5 KPI sur des fenêtres explicites, avec métadonnées de fraîcheur et de cache.",
     responses={200: SUCCESS_JSON, 503: ERROR_RESPONSE},
 )
 def stats():

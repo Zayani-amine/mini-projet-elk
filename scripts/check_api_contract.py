@@ -1,11 +1,13 @@
 import json
 import os
 import sys
+from datetime import datetime, timezone
 
 os.environ["ENABLE_STATUS_POLLER"] = "0"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.app import create_app
+from app.services import dashboard_stats
 from app.services.elasticsearch_search import build_query, build_suggest_query
 
 app = create_app()
@@ -204,6 +206,85 @@ for marker in ("updateAlertState", "criticalAlertCount", "alert-status-global", 
         raise SystemExit("Frontend alert intelligence is missing: %s" % marker)
 if "\u2014" in frontend_js:
     raise SystemExit("Frontend JavaScript contains an em dash")
+
+with open("app/services/dashboard_stats.py", encoding="utf-8") as handle:
+    stats_source = handle.read()
+for marker in (
+    "WINDOW_ENERGY_SECONDS = 60",
+    "WINDOW_ALERTS_SECONDS = 24 * 3600",
+    '"min_doc_count": 0',
+    '"global_avg"',
+    '"last_reading"',
+    '"age_seconds"',
+    '"estimated_due_date": {"gte": today',
+    '"latest_prediction_per_equipment"',
+    "elk:kpi:v2:",
+    '"generated_at"',
+):
+    if marker not in stats_source:
+        raise SystemExit("Dashboard semantic marker is missing: %s" % marker)
+if dashboard_stats._rounded(None) is not None:
+    raise SystemExit("Missing dashboard values must not become zero")
+fixed_now = datetime(2026, 11, 27, 19, 55, tzinfo=timezone.utc)
+if dashboard_stats._window(60, fixed_now)["from"] != "2026-11-27T19:54:00Z":
+    raise SystemExit("Dashboard window helper is incorrect")
+if dashboard_stats._age_seconds("2026-11-27T19:54:30Z", fixed_now) != 30:
+    raise SystemExit("Dashboard age helper is incorrect")
+for key, expected in (
+    ("WINDOW_TEMPERATURE_SECONDS", 7 * 24 * 3600),
+    ("WINDOW_ALERTS_SECONDS", 24 * 3600),
+    ("WINDOW_ENERGY_SECONDS", 60),
+    ("WINDOW_OCCUPANCY_SECONDS", 7 * 24 * 3600),
+):
+    if getattr(dashboard_stats, key) != expected:
+        raise SystemExit("Dashboard window constant is incorrect: %s" % key)
+
+captured_bodies = []
+original_post_json = dashboard_stats.post_json
+
+
+def capture_post_json(path, body, *args, **kwargs):
+    captured_bodies.append(body)
+    return {"aggregations": {}, "hits": {"total": 0, "hits": []}}
+
+
+dashboard_stats.post_json = capture_post_json
+try:
+    dashboard_stats.fetch_critical_alerts_24h(fixed_now)
+    dashboard_stats.fetch_energy_realtime(fixed_now)
+finally:
+    dashboard_stats.post_json = original_post_json
+for body in captured_bodies:
+    for aggregation in body.get("aggs", {}).values():
+        histogram = aggregation.get("date_histogram")
+        if not histogram or "extended_bounds" not in histogram:
+            continue
+        if histogram.get("format") != "strict_date_time_no_millis":
+            raise SystemExit("Extended date bounds must use ISO format")
+
+with open("app/templates/index.html", encoding="utf-8") as handle:
+    dashboard_html = handle.read()
+with open("app/templates/results.html", encoding="utf-8") as handle:
+    results_html = handle.read()
+for marker in (
+    "kpi-temperature-detail",
+    "kpi-alerts-detail",
+    "kpi-energy-detail",
+    "kpi-occupancy-detail",
+    "kpi-maintenance-detail",
+    "Température moyenne · 7 j",
+    "Alertes critiques · 24 h",
+    "Consommation d'énergie (kWh) · 1 min",
+    "Fenêtre glissante · 24 h",
+):
+    if marker not in dashboard_html:
+        raise SystemExit("Dashboard template semantic marker is missing: %s" % marker)
+for marker in ("critical_alerts_24h", "global_avg", "total_kwh", "last_reading_at", "age_seconds", "stale", "formatAge", "document(s)"):
+    if marker not in frontend_js:
+        raise SystemExit("Frontend semantic marker is missing: %s" % marker)
+for forbidden in ("temps réel", "Dernière minute relevée", "Dernier jour relevé", "résultat(s)", "occurrence(s)"):
+    if forbidden in frontend_js or forbidden in dashboard_html or forbidden in results_html:
+        raise SystemExit("Misleading frontend wording remains: %s" % forbidden)
 
 with open("app/static/css/app.css", encoding="utf-8") as handle:
     styles = handle.read()

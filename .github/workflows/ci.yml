@@ -68,7 +68,20 @@ jobs:
           grep -q '"example": "temperatur"' app/api/schemas.py
           grep -q 'api_v1_dashboard' app/app.py
           grep -q 'redis==5.2.1' requirements.txt
-          grep -q 'elk:kpi:energy_realtime' app/services/dashboard_stats.py
+          grep -q 'elk:kpi:v2:energy_realtime' app/services/dashboard_stats.py
+          grep -q 'WINDOW_ENERGY_SECONDS = 60' app/services/dashboard_stats.py
+          grep -q '"min_doc_count": 0' app/services/dashboard_stats.py
+          grep -q '"global_avg"' app/services/dashboard_stats.py
+          grep -q '"last_reading"' app/services/dashboard_stats.py
+          grep -q 'latest_prediction_per_equipment' app/services/dashboard_stats.py
+          grep -q 'critical_alerts_24h' app/static/js/app.js
+          grep -q 'total_kwh' app/static/js/app.js
+          grep -q 'formatAge' app/static/js/app.js
+          grep -q 'kpi-energy-detail' app/templates/index.html
+          grep -q 'document(s)' app/static/js/app.js
+          ! grep -Rqi 'temps réel' app/templates app/static/js/app.js
+          ! grep -Rq 'résultat(s)' app/templates app/static/js/app.js
+          ! grep -Rq 'occurrence(s)' app/templates app/static/js/app.js
           grep -q 'text/csv' app/api/dashboard.py
           grep -q 'XMLHttpRequest' app/static/js/app.js
           bash -n kibana/import_dashboard.sh
