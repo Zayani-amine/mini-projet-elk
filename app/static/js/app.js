@@ -93,17 +93,13 @@
 
   const updateAlertState = count => {
     const active = Number.isFinite(count) && count > 0;
-    ['alerts-dot', 'alerts-chart-dot', 'alerts-headline-dot', 'alerts-headline', 'alerts-action', 'nav-alert-dot'].forEach(id => show(id, active));
+    ['alerts-dot', 'alerts-chart-dot', 'alerts-headline-dot', 'alerts-headline', 'alerts-action'].forEach(id => show(id, active));
     if (count === null || !Number.isFinite(count)) {
       setText('alert-status-global', 'Statut des alertes indisponible.');
     } else if (active) {
       setText('alert-status-global', formatInteger(count) + ' alertes critiques au dernier jour relevé.');
     } else {
       setText('alert-status-global', 'Aucune alerte critique au dernier jour relevé.');
-    }
-    const shortcut = document.getElementById('alerts-shortcut');
-    if (shortcut) {
-      shortcut.setAttribute('aria-label', active ? 'Voir ' + formatInteger(count) + ' alertes critiques' : 'Ouvrir la recherche, aucune alerte critique');
     }
   };
 
@@ -119,8 +115,8 @@
   if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.font) {
     Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
     Chart.defaults.font.size = 12;
-    Chart.defaults.color = '#dbe7f5';
-    Chart.defaults.borderColor = 'rgba(226, 232, 240, 0.12)';
+    Chart.defaults.color = '#6e6e73';
+    Chart.defaults.borderColor = '#e8e8ed';
     if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
       Chart.defaults.plugins.legend.labels = Object.assign({}, Chart.defaults.plugins.legend.labels, { boxWidth: 12 });
     }
@@ -164,8 +160,8 @@
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { color: 'rgba(226, 232, 240, 0.12)' }, ticks: { color: '#c2d0e4' } },
-          y: { beginAtZero: true, grid: { color: 'rgba(226, 232, 240, 0.12)' }, ticks: { color: '#c2d0e4' } }
+          x: { grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } },
+          y: { beginAtZero: true, grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } }
         }
       };
 
@@ -176,17 +172,17 @@
           datasets: [{
             label: 'Température (°C)',
             data: temperatures.map(row => numberOr(row && row.avg, 0)),
-            backgroundColor: '#38bdf8',
+            backgroundColor: '#0071e3',
             borderRadius: 6
           }]
         },
         options: Object.assign({}, axisOptions, {
           scales: {
-            x: { grid: { color: 'rgba(226, 232, 240, 0.12)' }, ticks: { color: '#c2d0e4' } },
+            x: { grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } },
             y: {
               beginAtZero: true,
-              grid: { color: 'rgba(226, 232, 240, 0.12)' },
-              ticks: { color: '#c2d0e4' },
+              grid: { color: '#e8e8ed' },
+              ticks: { color: '#6e6e73' },
               title: { display: true, text: '°C' }
             }
           }
@@ -200,9 +196,9 @@
           datasets: [{
             label: 'Alertes critiques',
             data: alerts.map(row => numberOr(row && row.count, 0)),
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239, 68, 68, 0.2)',
-            pointBackgroundColor: '#ef4444',
+            borderColor: '#ff3b30',
+            backgroundColor: 'rgba(255, 59, 48, 0.12)',
+            pointBackgroundColor: '#ff3b30',
             pointRadius: 2,
             borderWidth: 2,
             fill: true,
@@ -219,9 +215,9 @@
           datasets: [{
             label: 'Énergie (kWh)',
             data: energy.map(row => numberOr(row && row.total, 0)),
-            borderColor: '#34d399',
-            backgroundColor: 'rgba(52, 211, 153, 0.2)',
-            pointBackgroundColor: '#34d399',
+            borderColor: '#34c759',
+            backgroundColor: 'rgba(52, 199, 89, 0.12)',
+            pointBackgroundColor: '#34c759',
             pointRadius: 2,
             borderWidth: 2,
             fill: true,
@@ -238,9 +234,9 @@
           datasets: [{
             label: 'Taux d’occupation (%)',
             data: occupancy.map(row => numberOr(row && row.rate, 0)),
-            backgroundColor: ['#38bdf8', '#34d399', '#fbbf24', '#94a3b8'],
+            backgroundColor: ['#0071e3', '#34c759', '#ff9500', '#8e8e93'],
             borderWidth: 1,
-            borderColor: '#07111f'
+            borderColor: '#ffffff'
           }]
         },
         options: {
@@ -261,7 +257,7 @@
           datasets: [{
             label: 'Usure (%)',
             data: maintenance.map(row => numberOr(row && row.wear_level, 0)),
-            backgroundColor: '#fbbf24',
+            backgroundColor: '#ff9500',
             borderRadius: 6
           }]
         },
@@ -287,10 +283,10 @@
             x: {
               beginAtZero: true,
               max: 100,
-              grid: { color: 'rgba(226, 232, 240, 0.12)' },
-              ticks: { color: '#c2d0e4' }
+              grid: { color: '#e8e8ed' },
+              ticks: { color: '#6e6e73' }
             },
-            y: { grid: { display: false }, ticks: { color: '#c2d0e4' } }
+            y: { grid: { display: false }, ticks: { color: '#6e6e73' } }
           }
         }
       }, maintenance.length > 0);

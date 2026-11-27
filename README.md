@@ -203,9 +203,9 @@ curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/u
 
 La page `/search` propose des valeurs indexées pendant la saisie. Le navigateur attend 250 ms, exige au moins 2 caractères, annule les requêtes périmées avec `AbortController` et accepte la navigation au clavier via `role="listbox"`, `aria-activedescendant`, les flèches, Entrée et Échap. Les suggestions proviennent uniquement des champs Elasticsearch réels. Aucune valeur, aucun compteur ni aucun avis n'est inventé dans l'interface.
 
-Le style est un glassmorphism sombre et sobre : panneaux translucides avec flou d'arrière-plan, bordures claires fines, bleu cyan comme accent unique et deux halos bleu/teal en fond. Les boutons restent à coin droit, la police est système, il n'y a ni dégradé violet, ni pilule, ni image générée, ni animation de curseur ou de défilement. Les KPI affichent `n/d` lorsqu'une donnée manque, jamais zéro.
+Le style est clair et sobre, avec des cartes blanches à coins arrondis, des ombres douces, des bordures fines, un fond gris pâle et un bleu système comme accent unique. Les boutons restent à coins modérés, la police est système, il n'y a ni dégradé violet, ni pilule, ni image générée, ni animation de curseur ou de défilement. Les KPI affichent `n/d` lorsqu'une donnée manque, jamais zéro.
 
-L'intelligence d'interface repose sur des signaux réels : un point rouge apparaît uniquement lorsque le dernier jour relevé contient au moins une alerte critique. Il est présent dans l'en-tête, sur le KPI, sur le graphique des alertes et dans la navigation. Le point est décoratif et `aria-hidden` ; un message `role="status"` annonce le nombre ou l'absence d'alertes. Les résultats de recherche critiques portent le même point à côté de la sévérité.
+L'intelligence d'interface repose sur des signaux réels : un point rouge apparaît uniquement lorsque le dernier jour relevé contient au moins une alerte critique. Il est présent sur le KPI, sur le graphique des alertes et dans le titre du tableau de bord. Le point est décoratif et `aria-hidden` ; un message `role="status"` annonce le nombre ou l'absence d'alertes. Les résultats de recherche critiques portent le même point à côté de la sévérité.
 
 La mise en ligne reste subordonnée à quatre éléments : domaine réel avec DNS et TLS, favicon, suppression de tout tag « Made with AI » et pages `/privacy` et `/terms`. Le favicon et les pages légales sont présents. Le tag est absent et vérifié par la CI. Le proxy `proxy` fournit une configuration `server_name ${PUBLIC_DOMAIN}` sous profil Docker, avec `PUBLIC_DOMAIN=localhost` par défaut dans `.env.example`. Il doit être activé et configuré avec un vrai domaine avant publication :
 
@@ -230,7 +230,7 @@ curl localhost:8088/health
 7. Ouvrir `/privacy` et `/terms` : les deux pages sont accessibles depuis le pied de page et contiennent des champs à renseigner avant publication.
 8. Vérifier que le favicon est servi sur `/static/favicon.svg` et qu'aucune page n'affiche de tag « Made with AI ».
 9. Vérifier l'autocomplétion au clavier : flèches, Entrée pour sélectionner une suggestion, Échap pour fermer la liste.
-10. Vérifier le glassmorphism : panneaux translucides floutés, contraste lisible, focus visible et aucun dégradé violet. Le point rouge d'alerte ne s'affiche que si des alertes critiques réelles sont présentes.
+10. Vérifier le style clair : cartes blanches à coins arrondis, ombres douces, contraste lisible, focus visible et aucun dégradé violet. Le point rouge d'alerte ne s'affiche que si des alertes critiques réelles sont présentes.
 
 Commandes rapides :
 

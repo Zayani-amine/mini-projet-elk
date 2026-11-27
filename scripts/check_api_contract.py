@@ -99,7 +99,7 @@ for path in ("/", "/upload", "/search", "/results", "/privacy", "/terms"):
         raise SystemExit("%s contains an em dash" % path)
 
 dashboard_body = page_bodies["/"]
-for marker in ("alerts-dot", "alerts-chart-dot", "alerts-headline-dot", "nav-alert-dot"):
+for marker in ("alerts-dot", "alerts-chart-dot", "alerts-headline-dot", "alerts-action"):
     if marker not in dashboard_body:
         raise SystemExit("Dashboard is missing alert dot marker: %s" % marker)
 
@@ -207,10 +207,12 @@ if "\u2014" in frontend_js:
 
 with open("app/static/css/app.css", encoding="utf-8") as handle:
     styles = handle.read()
-for marker in ("--elk-glass", "backdrop-filter", ".status-dot"):
+for marker in ("color-scheme: light", "--elk-surface", "--elk-radius-card", ".status-dot"):
     if marker not in styles:
-        raise SystemExit("Glassmorphism style is missing: %s" % marker)
-if "gradient(" in styles.lower() or "purple" in styles.lower():
-    raise SystemExit("Glassmorphism style contains a forbidden background")
+        raise SystemExit("Modern light style is missing: %s" % marker)
+lowered_styles = styles.lower()
+for marker in ("backdrop-filter", "--elk-glass", "gradient(", "purple"):
+    if marker in lowered_styles:
+        raise SystemExit("Modern light style contains a forbidden marker: %s" % marker)
 
 print("API_CONTRACT_OK paths=%d" % len(paths))
