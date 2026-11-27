@@ -20,6 +20,7 @@
 <div id="dashboard-error" class="alert alert-danger d-none" role="alert">
   <strong>Impossible de charger les statistiques.</strong>
   <span id="dashboard-error-message"></span>
+  <button id="dashboard-retry" type="button" class="btn btn-sm btn-outline-danger mt-2">Réessayer</button>
 </div>
 
 <div class="row g-3 row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-5 mb-4">
@@ -75,40 +76,59 @@
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Température moyenne par zone · 7 j</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-temperature">Graphique de température non pris en charge par ce navigateur.</canvas></div></div>
+      <div class="card-body">
+        <p class="chart-legend">Barres : moyenne par zone en °C.</p>
+        <div class="chart-wrap"><canvas id="chart-temperature" role="img" aria-label="Température moyenne par zone sur 7 jours">Graphique de température non pris en charge par ce navigateur.</canvas></div>
+        <details class="chart-data"><summary>Voir les valeurs du graphique</summary><div id="chart-temperature-data" class="chart-data-content"></div></details>
+      </div>
     </div>
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold d-flex align-items-center gap-2">Alertes critiques par heure · 24 h <span id="alerts-chart-dot" class="status-dot d-none" aria-hidden="true"></span></div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-alerts">Graphique des alertes non pris en charge par ce navigateur.</canvas></div></div>
+      <div class="card-body">
+        <p class="chart-legend">Ligne : nombre d'alertes critiques par heure.</p>
+        <div class="chart-wrap"><canvas id="chart-alerts" role="img" aria-label="Alertes critiques par heure sur 24 heures">Graphique des alertes non pris en charge par ce navigateur.</canvas></div>
+        <details class="chart-data"><summary>Voir les valeurs du graphique</summary><div id="chart-alerts-data" class="chart-data-content"></div></details>
+      </div>
     </div>
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Consommation d'énergie (kWh) · 1 min</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-energy">Graphique d'énergie non pris en charge par ce navigateur.</canvas></div></div>
+      <div class="card-body">
+        <p class="chart-legend">Ligne : consommation électrique en kWh. Le volume d'eau est exclu de ce graphique.</p>
+        <div class="chart-wrap"><canvas id="chart-energy" role="img" aria-label="Consommation électrique en kWh sur la dernière minute">Graphique d'énergie non pris en charge par ce navigateur.</canvas></div>
+        <details class="chart-data"><summary>Voir les valeurs du graphique</summary><div id="chart-energy-data" class="chart-data-content"></div></details>
+      </div>
     </div>
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
       <div class="card-header fw-semibold">Taux d'occupation par salle · 7 j</div>
-      <div class="card-body"><div class="chart-wrap"><canvas id="chart-occupancy">Graphique d'occupation non pris en charge par ce navigateur.</canvas></div></div>
+      <div class="card-body">
+        <p class="chart-legend">Segments : taux moyen par salle en pourcentage.</p>
+        <div class="chart-wrap"><canvas id="chart-occupancy" role="img" aria-label="Taux d'occupation moyen par salle sur 7 jours">Graphique d'occupation non pris en charge par ce navigateur.</canvas></div>
+        <details class="chart-data"><summary>Voir les valeurs du graphique</summary><div id="chart-occupancy-data" class="chart-data-content"></div></details>
+      </div>
     </div>
   </div>
   <div class="col-12" id="maintenance-table-card">
     <div class="card shadow-sm">
       <div class="card-header fw-semibold">Prévisions de maintenance</div>
       <div class="card-body">
-        <div class="chart-wrap chart-wrap-wide"><canvas id="chart-maintenance">Graphique de maintenance non pris en charge par ce navigateur.</canvas></div>
+        <p class="chart-legend">Barres : usure en pourcentage pour les équipements avec échéance future.</p>
+        <div class="chart-wrap chart-wrap-wide"><canvas id="chart-maintenance" role="img" aria-label="Usure des équipements en prévision de maintenance">Graphique de maintenance non pris en charge par ce navigateur.</canvas></div>
+        <details class="chart-data"><summary>Voir les valeurs du graphique</summary><div id="chart-maintenance-data" class="chart-data-content"></div></details>
         <div class="table-responsive mt-3">
-          <table class="table table-sm table-hover align-middle mb-0" aria-label="Prévisions de maintenance par équipement">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <caption class="visually-hidden">Prévisions de maintenance par équipement</caption>
             <thead>
               <tr>
-                <th>Équipement</th>
-                <th>Panne prévue</th>
-                <th>Usure</th>
-                <th>Échéance estimée</th>
+                <th scope="col">Équipement</th>
+                <th scope="col">Panne prévue</th>
+                <th scope="col">Usure</th>
+                <th scope="col">Échéance estimée</th>
               </tr>
             </thead>
             <tbody id="maintenance-body"></tbody>
