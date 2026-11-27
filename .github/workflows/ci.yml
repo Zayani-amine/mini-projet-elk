@@ -50,8 +50,8 @@ jobs:
           test -f app/static/css/app.css
           test -f app/static/js/app.js
           test -f app/static/favicon.svg
-          test -f app/templates/privacy.html
-          test -f app/templates/terms.html
+          test ! -f app/templates/privacy.html
+          test ! -f app/templates/terms.html
           test -f deploy/nginx.conf.template
           test -f kibana/saved_objects/elk-dashboard.ndjson
           test -f kibana/import_dashboard.sh
@@ -68,8 +68,12 @@ jobs:
           grep -q '"example": "temperatur"' app/api/schemas.py
           grep -q 'api_v1_dashboard' app/app.py
           grep -q 'redis==5.2.1' requirements.txt
-          grep -q 'elk:kpi:v2:energy_realtime' app/services/dashboard_stats.py
-          grep -q 'WINDOW_ENERGY_SECONDS = 60' app/services/dashboard_stats.py
+          grep -q 'DEFAULT_PERIOD = "7d"' app/services/dashboard_stats.py
+          grep -q 'MAX_CUSTOM_SECONDS = 90 \* 24 \* 3600' app/services/dashboard_stats.py
+          grep -q 'def resolve_period' app/services/dashboard_stats.py
+          grep -q 'def _interval_for_seconds' app/services/dashboard_stats.py
+          grep -q 'elk:kpi:v3:' app/services/dashboard_stats.py
+          grep -q '"fixed_interval": spec\["interval"\]' app/services/dashboard_stats.py
           grep -q '"min_doc_count": 0' app/services/dashboard_stats.py
           grep -q '"global_avg"' app/services/dashboard_stats.py
           grep -q '"last_reading"' app/services/dashboard_stats.py
@@ -77,6 +81,14 @@ jobs:
           grep -q 'critical_alerts_24h' app/static/js/app.js
           grep -q 'total_kwh' app/static/js/app.js
           grep -q 'formatAge' app/static/js/app.js
+          grep -q 'dashboardParamsFromControls' app/static/js/app.js
+          grep -q 'initUploadHistory' app/static/js/app.js
+          grep -q 'chartInstances' app/static/js/app.js
+          grep -q 'cleanLabel' app/static/js/app.js
+          grep -q 'dashboard-period-form' app/templates/index.html
+          grep -q 'dashboard-period-summary' app/templates/index.html
+          grep -q 'dashboard-custom-range' app/templates/index.html
+          grep -q 'upload-history-list' app/templates/upload.html
           grep -q 'kpi-energy-detail' app/templates/index.html
           grep -q 'document(s)' app/static/js/app.js
           grep -q 'setFieldError' app/static/js/app.js
@@ -115,8 +127,11 @@ jobs:
           grep -q 'AbortController' app/static/js/app.js
           grep -q 'aria-activedescendant' app/static/js/app.js
           grep -q 'rel="icon"' app/templates/base.html
-          grep -q 'href="/privacy"' app/templates/base.html
-          grep -q 'href="/terms"' app/templates/base.html
+          ! grep -q 'href="/privacy"' app/templates/base.html
+          ! grep -q 'href="/terms"' app/templates/base.html
+          ! grep -q 'brand-mark' app/templates/base.html
+          ! grep -q 'brand-mark' app/static/css/app.css
+          ! grep -Rq 'n/d' app/templates/index.html app/templates/results.html app/templates/upload.html
           grep -q 'PUBLIC_BASE_URL' .env.example
           grep -q 'PUBLIC_DOMAIN' docker-compose.yml
           grep -q 'color-scheme: light' app/static/css/app.css

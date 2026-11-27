@@ -270,16 +270,6 @@ def create_app():
     def results_page():
         return render_template("results.html")
 
-    @app.get("/privacy")
-    @app.doc(summary="Politique de confidentialité", tags=["Interface web"])
-    def privacy_page():
-        return render_template("privacy.html")
-
-    @app.get("/terms")
-    @app.doc(summary="Conditions d'utilisation", tags=["Interface web"])
-    def terms_page():
-        return render_template("terms.html")
-
     @app.get("/health")
     @app.doc(
         summary="État de santé du service",

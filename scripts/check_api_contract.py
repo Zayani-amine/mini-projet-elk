@@ -26,8 +26,6 @@ required = {
     "/upload",
     "/search",
     "/results",
-    "/privacy",
-    "/terms",
 }
 paths = set(app.spec["paths"])
 missing = required - paths
@@ -49,8 +47,6 @@ expected_methods = {
     "/upload": {"get"},
     "/search": {"get"},
     "/results": {"get"},
-    "/privacy": {"get"},
-    "/terms": {"get"},
 }
 for path, methods in expected_methods.items():
     actual = set(app.spec["paths"][path])
@@ -69,6 +65,19 @@ file_errors = set(app.spec["paths"]["/api/v1/files/{file_id}"]["get"]["responses
 for status in ("400", "404"):
     if status not in file_errors:
         raise SystemExit("File route is missing documented response %s" % status)
+stats_responses = set(app.spec["paths"]["/api/v1/stats"]["get"]["responses"])
+for status in ("200", "400", "503"):
+    if status not in stats_responses:
+        raise SystemExit("Stats route is missing documented response %s" % status)
+stats_params = {
+    parameter["name"]: parameter["schema"]
+    for parameter in app.spec["paths"]["/api/v1/stats"]["get"]["parameters"]
+}
+if stats_params.get("period", {}).get("enum") != ["1h", "24h", "7d", "30d", "custom"]:
+    raise SystemExit("Stats period values are not documented")
+for name in ("from", "to"):
+    if stats_params.get(name, {}).get("format") != "date-time":
+        raise SystemExit("Stats %s date is not documented as date-time" % name)
 
 client = app.test_client()
 for path in ("/docs", "/openapi.json"):
@@ -81,7 +90,7 @@ for path in ("/docs", "/openapi.json"):
 docs_html = client.get("/docs").get_data(as_text=True)
 
 page_bodies = {}
-for path in ("/", "/upload", "/search", "/results", "/privacy", "/terms"):
+for path in ("/", "/upload", "/search", "/results"):
     response = client.get(path)
     body = response.get_data(as_text=True)
     page_bodies[path] = body
@@ -91,8 +100,10 @@ for path in ("/", "/upload", "/search", "/results", "/privacy", "/terms"):
         raise SystemExit("%s is missing the Bootstrap layout" % path)
     if 'rel="icon"' not in body:
         raise SystemExit("%s is missing the favicon link" % path)
-    if 'href="/privacy"' not in body or 'href="/terms"' not in body:
-        raise SystemExit("%s is missing the legal links" % path)
+    if 'href="/privacy"' in body or 'href="/terms"' in body:
+        raise SystemExit("%s still contains legal links" % path)
+    if 'class="brand-mark"' in body:
+        raise SystemExit("%s still contains the ELK navbar chip" % path)
     if 'alert-status-global' not in body:
         raise SystemExit("%s is missing the alert status region" % path)
     if 'class="skip-link"' not in body or 'id="main-content"' not in body or 'tabindex="-1"' not in body:
@@ -106,6 +117,16 @@ dashboard_body = page_bodies["/"]
 for marker in ("alerts-dot", "alerts-chart-dot", "alerts-headline-dot", "alerts-action"):
     if marker not in dashboard_body:
         raise SystemExit("Dashboard is missing alert dot marker: %s" % marker)
+for marker in (
+    "dashboard-period-form",
+    "dashboard-period",
+    "dashboard-period-summary",
+    "dashboard-custom-range",
+    "dashboard-period-error",
+    'type="datetime-local"',
+):
+    if marker not in dashboard_body:
+        raise SystemExit("Dashboard period selector is missing: %s" % marker)
 
 search_body = page_bodies["/search"]
 for marker in (
@@ -128,6 +149,10 @@ for marker in (
     "upload-formats",
     "upload-file-name",
     "upload-progress-wrap",
+    "upload-history-card",
+    "upload-history-list",
+    "upload-history-status",
+    "upload-history-retry",
 ):
     if marker not in upload_body:
         raise SystemExit("Upload page is missing accessibility marker: %s" % marker)
@@ -135,6 +160,10 @@ for marker in (
 missing_page = client.get("/cette-page-nexiste-pas")
 if missing_page.status_code != 404 or "Page introuvable" not in missing_page.get_data(as_text=True):
     raise SystemExit("Frontend 404 page is missing")
+
+for path in ("/privacy", "/terms"):
+    if client.get(path).status_code != 404:
+        raise SystemExit("Legal page still exists: %s" % path)
 
 missing_api = client.get("/api/v1/inconnu")
 if missing_api.status_code != 404 or "error" not in missing_api.get_json():
@@ -226,22 +255,42 @@ for marker in ("/api/v1/suggest", "AbortController", "aria-activedescendant"):
 for marker in ("updateAlertState", "criticalAlertCount", "alert-status-global", "severity-critical"):
     if marker not in frontend_js:
         raise SystemExit("Frontend alert intelligence is missing: %s" % marker)
+for marker in (
+    "bindDashboardControls",
+    "dashboardParamsFromControls",
+    "applyDashboardParams",
+    "initUploadHistory",
+    "chartInstances",
+    "cleanLabel",
+    "setAriaLabel",
+    "'/api/v1/stats?'",
+):
+    if marker not in frontend_js:
+        raise SystemExit("Frontend period or history marker is missing: %s" % marker)
 if "\u2014" in frontend_js:
     raise SystemExit("Frontend JavaScript contains an em dash")
 
 with open("app/services/dashboard_stats.py", encoding="utf-8") as handle:
     stats_source = handle.read()
 for marker in (
-    "WINDOW_ENERGY_SECONDS = 60",
-    "WINDOW_ALERTS_SECONDS = 24 * 3600",
+    'DEFAULT_PERIOD = "7d"',
+    "MAX_CUSTOM_SECONDS = 90 * 24 * 3600",
+    "PERIOD_PRESETS",
+    "PERIOD_VALUES",
+    "class PeriodValidationError",
+    "def resolve_period",
+    "def _interval_for_seconds",
+    '"fixed_interval": spec["interval"]',
     '"min_doc_count": 0',
     '"global_avg"',
     '"last_reading"',
     '"age_seconds"',
+    '"term": {"unit": "kWh"}',
     '"estimated_due_date": {"gte": today',
     '"latest_prediction_per_equipment"',
-    "elk:kpi:v2:",
+    "elk:kpi:v3:",
     '"generated_at"',
+    '"period": {',
 ):
     if marker not in stats_source:
         raise SystemExit("Dashboard semantic marker is missing: %s" % marker)
@@ -252,17 +301,41 @@ if dashboard_stats._window(60, fixed_now)["from"] != "2026-11-27T19:54:00Z":
     raise SystemExit("Dashboard window helper is incorrect")
 if dashboard_stats._age_seconds("2026-11-27T19:54:30Z", fixed_now) != 30:
     raise SystemExit("Dashboard age helper is incorrect")
-for key, expected in (
-    ("WINDOW_TEMPERATURE_SECONDS", 7 * 24 * 3600),
-    ("WINDOW_ALERTS_SECONDS", 24 * 3600),
-    ("WINDOW_ENERGY_SECONDS", 60),
-    ("WINDOW_OCCUPANCY_SECONDS", 7 * 24 * 3600),
+for seconds, expected in ((3600, "1m"), (24 * 3600, "1h"), (30 * 24 * 3600, "1d")):
+    if dashboard_stats._interval_for_seconds(seconds) != expected:
+        raise SystemExit("Dashboard interval helper is incorrect for %s seconds" % seconds)
+if dashboard_stats.DEFAULT_PERIOD != "7d" or dashboard_stats.MAX_CUSTOM_SECONDS != 90 * 24 * 3600:
+    raise SystemExit("Dashboard period constants are incorrect")
+preset = dashboard_stats.resolve_period({"period": "24h"}, fixed_now)
+if preset["from"] != "2026-11-26T19:55:00Z" or preset["to"] != "2026-11-27T19:55:00Z":
+    raise SystemExit("Dashboard preset period bounds are incorrect")
+if preset["interval"] != "1h" or preset["duration_seconds"] != 24 * 3600:
+    raise SystemExit("Dashboard preset period metadata is incorrect")
+custom = dashboard_stats.resolve_period(
+    {
+        "period": "custom",
+        "from": "2026-11-26T19:55:00Z",
+        "to": "2026-11-27T19:55:00Z",
+    },
+    fixed_now,
+)
+if custom["duration_seconds"] != 24 * 3600 or custom["interval"] != "1h":
+    raise SystemExit("Dashboard custom period metadata is incorrect")
+for invalid_args in (
+    {"period": "1y"},
+    {"period": "custom"},
+    {"period": "custom", "from": "2026-11-27T19:55:00Z", "to": "2026-11-26T19:55:00Z"},
+    {"period": "7d", "from": "2026-11-26T19:55:00Z"},
 ):
-    if getattr(dashboard_stats, key) != expected:
-        raise SystemExit("Dashboard window constant is incorrect: %s" % key)
+    try:
+        dashboard_stats.resolve_period(invalid_args, fixed_now)
+    except dashboard_stats.PeriodValidationError:
+        continue
+    raise SystemExit("Invalid period was accepted: %s" % invalid_args)
 
 captured_bodies = []
 original_post_json = dashboard_stats.post_json
+original_cached_value = dashboard_stats.cached_value
 
 
 def capture_post_json(path, body, *args, **kwargs):
@@ -270,12 +343,21 @@ def capture_post_json(path, body, *args, **kwargs):
     return {"aggregations": {}, "hits": {"total": 0, "hits": []}}
 
 
+def uncached_value(key, ttl, producer):
+    return producer(), False
+
+
 dashboard_stats.post_json = capture_post_json
+dashboard_stats.cached_value = uncached_value
 try:
-    dashboard_stats.fetch_critical_alerts_24h(fixed_now)
-    dashboard_stats.fetch_energy_realtime(fixed_now)
+    dashboard_stats.fetch_critical_alerts_24h(fixed_now, preset)
+    dashboard_stats.fetch_energy_realtime(fixed_now, preset)
+    stats_payload = dashboard_stats.build_stats({"period": "24h"})
+    if stats_payload["meta"]["period"]["key"] != "24h":
+        raise SystemExit("build_stats did not return the selected period")
 finally:
     dashboard_stats.post_json = original_post_json
+    dashboard_stats.cached_value = original_cached_value
 for body in captured_bodies:
     for aggregation in body.get("aggs", {}).values():
         histogram = aggregation.get("date_histogram")
@@ -283,21 +365,31 @@ for body in captured_bodies:
             continue
         if histogram.get("format") != "strict_date_time_no_millis":
             raise SystemExit("Extended date bounds must use ISO format")
+        if histogram.get("fixed_interval") != "1h":
+            raise SystemExit("Histogram did not use the selected period interval")
 
 with open("app/templates/index.html", encoding="utf-8") as handle:
     dashboard_html = handle.read()
 with open("app/templates/results.html", encoding="utf-8") as handle:
     results_html = handle.read()
+with open("app/templates/upload.html", encoding="utf-8") as handle:
+    upload_template = handle.read()
+for html, name in ((dashboard_html, "dashboard"), (results_html, "results"), (upload_template, "upload")):
+    if "n/d" in html:
+        raise SystemExit("%s template still contains an initial n/d placeholder" % name)
 for marker in (
     "kpi-temperature-detail",
     "kpi-alerts-detail",
     "kpi-energy-detail",
     "kpi-occupancy-detail",
     "kpi-maintenance-detail",
-    "Température moyenne · 7 j",
-    "Alertes critiques · 24 h",
-    "Consommation d'énergie (kWh) · 1 min",
-    "Fenêtre glissante · 24 h",
+    "label-temperature",
+    "label-alerts-text",
+    "label-energy",
+    "label-occupancy",
+    "dashboard-period-summary",
+    "Chargement…",
+    "En attente",
 ):
     if marker not in dashboard_html:
         raise SystemExit("Dashboard template semantic marker is missing: %s" % marker)
@@ -307,7 +399,7 @@ for marker in (
     "total_kwh",
     "last_reading_at",
     "age_seconds",
-    "stale",
+    "energyHasData",
     "formatAge",
     "document(s)",
     "setFieldError",
@@ -360,7 +452,7 @@ for marker in (
     if marker not in styles:
         raise SystemExit("Modern light style is missing: %s" % marker)
 lowered_styles = styles.lower()
-for marker in ("backdrop-filter", "--elk-glass", "gradient(", "purple"):
+for marker in ("backdrop-filter", "--elk-glass", "gradient(", "purple", ".brand-mark"):
     if marker in lowered_styles:
         raise SystemExit("Modern light style contains a forbidden marker: %s" % marker)
 
