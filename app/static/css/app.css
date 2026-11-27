@@ -71,18 +71,6 @@ body {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-.brand-mark {
-  display: inline-block;
-  margin-right: 0.4rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 0.35rem;
-  background: var(--elk-accent);
-  color: #ffffff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
 h1,
 h2,
 .h3 {

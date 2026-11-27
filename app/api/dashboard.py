@@ -7,8 +7,10 @@ from pymongo.errors import PyMongoError
 
 from app.api.errors import ERROR_RESPONSE, error_response
 from app.api.files import _serialize_file
+from app.api.schemas import StatsQuery
 from app.services.dashboard_stats import (
     DashboardBackendError,
+    PeriodValidationError,
     build_maintenance_forecast,
     build_stats,
 )
@@ -52,15 +54,18 @@ def _pagination(args):
 
 
 @api_v1_dashboard.get("/stats")
+@api_v1_dashboard.input(StatsQuery, location="query", validation=False)
 @api_v1_dashboard.doc(
     summary="Lire les indicateurs du tableau de bord",
     tags=["Tableau de bord"],
-    description="Agrégations Elasticsearch des 5 KPI sur des fenêtres explicites, avec métadonnées de fraîcheur et de cache.",
-    responses={200: SUCCESS_JSON, 503: ERROR_RESPONSE},
+    description="Agrégations Elasticsearch des 5 KPI sur une période choisie, avec métadonnées de fraîcheur et de cache.",
+    responses={200: SUCCESS_JSON, 400: ERROR_RESPONSE, 503: ERROR_RESPONSE},
 )
-def stats():
+def stats(query_data):
     try:
-        return jsonify(build_stats()), 200
+        return jsonify(build_stats(request.args)), 200
+    except PeriodValidationError as exc:
+        return error_response("INVALID_PERIOD", str(exc), 400)
     except DashboardBackendError as exc:
         return error_response("ELASTICSEARCH_UNAVAILABLE", str(exc), 503)
 

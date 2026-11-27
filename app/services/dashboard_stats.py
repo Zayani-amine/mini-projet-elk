@@ -9,13 +9,22 @@ SEARCH_INDEX_PATTERN = os.environ.get("SEARCH_INDEX_PATTERN", "sb-logs-*,logs-*"
 MAINTENANCE_INDEX_PATTERN = os.environ.get(
     "MAINTENANCE_INDEX_PATTERN", "sb-logs-maintenance-*,logs-maintenance"
 )
-WINDOW_TEMPERATURE_SECONDS = 7 * 24 * 3600
-WINDOW_ALERTS_SECONDS = 24 * 3600
-WINDOW_ENERGY_SECONDS = 60
-WINDOW_OCCUPANCY_SECONDS = 7 * 24 * 3600
+DEFAULT_PERIOD = "7d"
+MAX_CUSTOM_SECONDS = 90 * 24 * 3600
+PERIOD_PRESETS = {
+    "1h": {"label": "1 h", "duration_seconds": 3600, "interval": "1m"},
+    "24h": {"label": "24 h", "duration_seconds": 24 * 3600, "interval": "1h"},
+    "7d": {"label": "7 j", "duration_seconds": 7 * 24 * 3600, "interval": "1h"},
+    "30d": {"label": "30 j", "duration_seconds": 30 * 24 * 3600, "interval": "1d"},
+}
+PERIOD_VALUES = tuple(PERIOD_PRESETS) + ("custom",)
 
 
 class DashboardBackendError(RuntimeError):
+    pass
+
+
+class PeriodValidationError(ValueError):
     pass
 
 
@@ -98,8 +107,75 @@ def _age_seconds(value, now):
     return max(0, int((now - parsed).total_seconds()))
 
 
-def fetch_temperature_avg(now):
-    window = _window(WINDOW_TEMPERATURE_SECONDS, now)
+def _interval_for_seconds(seconds):
+    if seconds <= 2 * 3600:
+        return "1m"
+    if seconds <= 3 * 24 * 3600:
+        return "1h"
+    return "1d"
+
+
+def resolve_period(args, now=None):
+    now = now or _utc_now()
+    args = args or {}
+    name = str(args.get("period") or DEFAULT_PERIOD).strip().lower()
+    raw_from = args.get("from")
+    raw_to = args.get("to")
+
+    if name not in PERIOD_VALUES:
+        raise PeriodValidationError("period must be one of: %s" % ", ".join(PERIOD_VALUES))
+
+    if name == "custom":
+        parsed_from = _parse_timestamp(raw_from)
+        parsed_to = _parse_timestamp(raw_to)
+        if parsed_from is None or parsed_to is None:
+            raise PeriodValidationError("from and to are required for period=custom")
+        duration = int((parsed_to - parsed_from).total_seconds())
+        if duration <= 0:
+            raise PeriodValidationError("from must be before to")
+        if duration > MAX_CUSTOM_SECONDS:
+            raise PeriodValidationError("custom period cannot exceed 90 days")
+        start = _iso(parsed_from)
+        end = _iso(parsed_to)
+        return {
+            "key": "custom:%s:%s" % (start, end),
+            "label": "Personnalisé",
+            "from": start,
+            "to": end,
+            "duration_seconds": duration,
+            "interval": _interval_for_seconds(duration),
+            "window": {
+                "from": start,
+                "to": end,
+                "duration_seconds": duration,
+                "interval": _interval_for_seconds(duration),
+            },
+        }
+
+    if raw_from or raw_to:
+        raise PeriodValidationError("from and to require period=custom")
+    preset = PERIOD_PRESETS[name]
+    window = _window(preset["duration_seconds"], now)
+    window["interval"] = preset["interval"]
+    return {
+        "key": name,
+        "label": preset["label"],
+        "from": window["from"],
+        "to": window["to"],
+        "duration_seconds": preset["duration_seconds"],
+        "interval": preset["interval"],
+        "window": window,
+    }
+
+
+def _period_spec(period, now):
+    if period is None:
+        return resolve_period({}, now)
+    return period
+
+
+def fetch_temperature_avg(now, period=None):
+    window = _period_spec(period, now)["window"]
     payload = _search(
         SEARCH_INDEX_PATTERN,
         {
@@ -143,8 +219,9 @@ def fetch_temperature_avg(now):
     return result, meta
 
 
-def fetch_critical_alerts_24h(now):
-    window = _window(WINDOW_ALERTS_SECONDS, now)
+def fetch_critical_alerts_24h(now, period=None):
+    spec = _period_spec(period, now)
+    window = spec["window"]
     payload = _search(
         SEARCH_INDEX_PATTERN,
         {
@@ -161,7 +238,7 @@ def fetch_critical_alerts_24h(now):
                 "per_hour": {
                     "date_histogram": {
                         "field": "@timestamp",
-                        "fixed_interval": "1h",
+                        "fixed_interval": spec["interval"],
                         "format": "strict_date_time_no_millis",
                         "time_zone": "UTC",
                         "min_doc_count": 0,
@@ -186,8 +263,9 @@ def fetch_critical_alerts_24h(now):
     return result, meta
 
 
-def fetch_energy_realtime(now):
-    window = _window(WINDOW_ENERGY_SECONDS, now)
+def fetch_energy_realtime(now, period=None):
+    spec = _period_spec(period, now)
+    window = spec["window"]
     recent = _search(
         SEARCH_INDEX_PATTERN,
         {
@@ -204,7 +282,7 @@ def fetch_energy_realtime(now):
                 "per_minute": {
                     "date_histogram": {
                         "field": "@timestamp",
-                        "fixed_interval": "1m",
+                        "fixed_interval": spec["interval"],
                         "format": "strict_date_time_no_millis",
                         "time_zone": "UTC",
                         "min_doc_count": 0,
@@ -233,6 +311,7 @@ def fetch_energy_realtime(now):
                     "filter": [
                         {"exists": {"field": "quantity"}},
                         {"term": {"unit": "kWh"}},
+                        _timestamp_range(window),
                     ]
                 }
             },
@@ -254,6 +333,7 @@ def fetch_energy_realtime(now):
                 continue
             buckets.append(
                 {
+                    "bucket": minute,
                     "minute": minute,
                     "unit": str(unit_bucket.get("key") or ""),
                     "total": total,
@@ -271,8 +351,8 @@ def fetch_energy_realtime(now):
     )
     last_reading_at = _iso(last_reading)
     age = _age_seconds(last_reading, now)
-    stale = total_kwh is None or age is None or age > WINDOW_ENERGY_SECONDS
-    status = "no_data" if last_reading is None else ("stale" if stale else "ok")
+    stale = total_kwh is None
+    status = "no_data" if total_kwh is None else "ok"
     value = {
         "window": window,
         "status": status,
@@ -296,8 +376,8 @@ def fetch_energy_realtime(now):
     return value, meta
 
 
-def fetch_occupancy_rate(now):
-    window = _window(WINDOW_OCCUPANCY_SECONDS, now)
+def fetch_occupancy_rate(now, period=None):
+    window = _period_spec(period, now)["window"]
     payload = _search(
         SEARCH_INDEX_PATTERN,
         {
@@ -341,7 +421,7 @@ def fetch_occupancy_rate(now):
     return result, meta
 
 
-def fetch_maintenance_forecast(now):
+def fetch_maintenance_forecast(now, period=None):
     today = now.date().isoformat()
     payload = _search(
         MAINTENANCE_INDEX_PATTERN,
@@ -398,18 +478,18 @@ def fetch_maintenance_forecast(now):
 
 
 KPI_SOURCES = (
-    ("temperature_avg", "elk:kpi:v2:temperature_avg", 60, fetch_temperature_avg),
-    ("critical_alerts_24h", "elk:kpi:v2:critical_alerts_24h", 60, fetch_critical_alerts_24h),
-    ("energy_realtime", "elk:kpi:v2:energy_realtime", 10, fetch_energy_realtime),
-    ("occupancy_rate", "elk:kpi:v2:occupancy_rate", 60, fetch_occupancy_rate),
-    ("maintenance_forecast", "elk:kpi:v2:maintenance_forecast", 300, fetch_maintenance_forecast),
+    ("temperature_avg", "temperature_avg", 60, fetch_temperature_avg, True),
+    ("critical_alerts_24h", "critical_alerts_24h", 60, fetch_critical_alerts_24h, True),
+    ("energy_realtime", "energy_realtime", 10, fetch_energy_realtime, True),
+    ("occupancy_rate", "occupancy_rate", 60, fetch_occupancy_rate, True),
+    ("maintenance_forecast", "maintenance_forecast", 300, fetch_maintenance_forecast, False),
 )
 
 
-def _cached_kpi(key, ttl, producer):
+def _cached_kpi(key, ttl, callback):
     def produce():
         produced_at = _utc_now()
-        value, meta = producer(produced_at)
+        value, meta = callback()
         return {"generated_at": _iso(produced_at), "value": value, "meta": meta}
 
     envelope, hit = cached_value(key, ttl, produce)
@@ -424,13 +504,21 @@ def _cached_kpi(key, ttl, producer):
     return value, meta, hit
 
 
-def build_stats():
+def build_stats(args=None):
     now = _utc_now()
+    period = resolve_period(args, now)
     data = {}
     kpi_meta = {}
     hits = []
-    for name, key, ttl, producer in KPI_SOURCES:
-        value, meta, hit = _cached_kpi(key, ttl, producer)
+    for name, key, ttl, producer, scoped in KPI_SOURCES:
+        cache_key = "elk:kpi:v3:" + (period["key"] + ":" if scoped else "") + key
+
+        def produce(producer=producer, scoped=scoped):
+            if scoped:
+                return producer(now, period)
+            return producer(now)
+
+        value, meta, hit = _cached_kpi(cache_key, ttl, produce)
         data[name] = value
         kpi_meta[name] = meta
         hits.append(hit)
@@ -439,14 +527,25 @@ def build_stats():
     data["meta"] = {
         "generated_at": _iso(now),
         "cache_hit": all(hits),
+        "period": {
+            "key": period["key"],
+            "label": period["label"],
+            "from": period["from"],
+            "to": period["to"],
+            "duration_seconds": period["duration_seconds"],
+            "interval": period["interval"],
+        },
         "kpis": kpi_meta,
     }
     return data
 
 
 def build_maintenance_forecast():
+    def produce():
+        return fetch_maintenance_forecast(_utc_now())
+
     items, meta, hit = _cached_kpi(
-        "elk:kpi:v2:maintenance_forecast", 300, fetch_maintenance_forecast
+        "elk:kpi:v3:maintenance_forecast", 300, produce
     )
     return {
         "items": items,

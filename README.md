@@ -203,13 +203,13 @@ curl -F "file=@README.md;filename=capteurs_invalide.pdf" localhost:5000/api/v1/u
 
 La page `/search` propose des valeurs indexées pendant la saisie. Le navigateur attend 250 ms, exige au moins 2 caractères, annule les requêtes périmées avec `AbortController` et accepte la navigation au clavier via `role="listbox"`, `aria-activedescendant`, les flèches, Entrée et Échap. Les suggestions proviennent uniquement des champs Elasticsearch réels. Aucune valeur, aucun compteur ni aucun avis n'est inventé dans l'interface.
 
-Le style est clair et sobre, avec des cartes blanches à coins arrondis, des ombres douces, des bordures fines, un fond gris pâle et un bleu système comme accent unique. Les boutons restent à coins modérés, la police est système, il n'y a ni dégradé violet, ni pilule, ni image générée, ni animation de curseur ou de défilement. Les KPI affichent `n/d` lorsqu'une donnée manque ou que la mesure énergétique est trop ancienne, jamais zéro.
+Le style est clair et sobre, avec des cartes blanches à coins arrondis, des ombres douces, des bordures fines, un fond gris pâle et un bleu système comme accent unique. Les boutons restent à coins modérés, la police est système, il n'y a ni dégradé violet, ni pilule, ni image générée, ni animation de curseur ou de défilement. Les KPI affichent `n/d` uniquement lorsqu'aucune donnée n'existe sur la période choisie, jamais zéro.
 
 L'interface est utilisable au clavier : un lien d'évitement mène au contenu principal, les liens actifs exposent `aria-current`, les rangées de tableau ont une légende masquée et des en-têtes `scope`, les graphiques ont une description et un tableau de valeurs textuel, les erreurs de recherche et d'upload sont invalidées en ligne, et les boutons de réessai restent accessibles après échec. La zone de dépôt accepte Entrée et Espace, la limite de 100 Mo est contrôlée avant envoi, la progression annonce son pourcentage via `aria-valuetext`, et les détails JSON des documents sont focalisables avec un libellé explicite. Le focus est renforcé et `prefers-reduced-motion` désactive les transitions.
 
-Les fenêtres sont explicites : 7 jours pour la température et l'occupation, 24 heures pour les alertes critiques, 1 minute pour l'énergie et échéances futures pour la maintenance. Le KPI énergie est exprimé en kWh avec la date et l'âge exacts du dernier relevé ; le volume d'eau en m3 reste séparé. L'intelligence d'interface repose sur des signaux réels : un point rouge apparaît uniquement lorsque les 24 dernières heures contiennent au moins une alerte critique. Il est présent sur le KPI, sur le graphique des alertes et dans le titre du tableau de bord. Le point est décoratif et `aria-hidden` ; un message `role="status"` annonce le nombre ou l'absence d'alertes. Les résultats de recherche critiques portent le même point à côté de la sévérité.
+Le tableau de bord propose une période explicite : `1h`, `24h`, `7d` (par défaut), `30d` ou un intervalle personnalisé de 90 jours maximum. La sélection met à jour l'URL, les KPI, les graphiques, les légendes, les libellés accessibles et le message d'annonce des alertes. Les intervalles d'histogramme s'adaptent à la période : `1m`, `1h` ou `1d`. La maintenance reste limitée aux échéances futures. Le KPI énergie additionne les kWh de la période avec la date et l'âge du dernier relevé ; le volume d'eau en m3 reste séparé. L'intelligence d'interface repose sur des signaux réels : un point rouge apparaît uniquement lorsque la période affichée contient au moins une alerte critique. Il est présent sur le KPI, sur le graphique des alertes et dans le titre du tableau de bord. Le point est décoratif et `aria-hidden` ; un message `role="status"` annonce le nombre ou l'absence d'alertes. Les résultats de recherche critiques portent le même point à côté de la sévérité.
 
-La mise en ligne reste subordonnée à quatre éléments : domaine réel avec DNS et TLS, favicon, suppression de tout tag « Made with AI » et pages `/privacy` et `/terms`. Le favicon et les pages légales sont présents. Le tag est absent et vérifié par la CI. Le proxy `proxy` fournit une configuration `server_name ${PUBLIC_DOMAIN}` sous profil Docker, avec `PUBLIC_DOMAIN=localhost` par défaut dans `.env.example`. Il doit être activé et configuré avec un vrai domaine avant publication :
+La mise en ligne reste subordonnée à trois éléments : domaine réel avec DNS et TLS, favicon et suppression de tout tag « Made with AI ». Le favicon est présent. Les pages `/privacy` et `/terms`, leurs routes et leurs liens ont été retirés. Le tag est absent et vérifié par la CI. Le proxy `proxy` fournit une configuration `server_name ${PUBLIC_DOMAIN}` sous profil Docker, avec `PUBLIC_DOMAIN=localhost` par défaut dans `.env.example`. Il doit être activé et configuré avec un vrai domaine avant publication :
 
 ```bash
 docker compose --profile proxy up -d proxy
@@ -218,8 +218,8 @@ curl localhost:8088/health
 
 ## Vérification ELK-25 à ELK-31
 
-1. Ouvrir `http://localhost:5000/` : les 5 KPI et les graphiques Chart.js se chargent depuis `/api/v1/stats` avec leurs fenêtres et unités ; le badge indique combien d'indicateurs ont été servis par Redis. Une énergie sans relevé dans la dernière minute affiche `n/d` et l'âge du dernier relevé. Tabuler jusqu'au lien d'évitement puis ouvrir chaque section « Voir les valeurs du graphique » : les mêmes valeurs que les graphiques sont lisibles sous forme de tableau.
-2. Ouvrir `http://localhost:5000/upload` : glisser-déposer un `.csv`, `.json` ou `.txt`, suivre la progression, puis vérifier le `file_id` retourné.
+1. Ouvrir `http://localhost:5000/` : choisir une période prédéfinie ou personnalisée, puis appliquer. Les 5 KPI et les graphiques Chart.js se chargent depuis `/api/v1/stats?period=...` avec leurs unités ; le badge indique combien d'indicateurs ont été servis par Redis. Une énergie sans relevé kWh sur la période affiche `n/d` ; dès qu'un relevé existe, le total kWh et l'âge du dernier relevé sont affichés. Tabuler jusqu'au lien d'évitement puis ouvrir chaque section « Voir les valeurs du graphique » : les mêmes valeurs que les graphiques sont lisibles sous forme de tableau.
+2. Ouvrir `http://localhost:5000/upload` : glisser-déposer un `.csv`, `.json` ou `.txt`, suivre la progression, vérifier le `file_id` retourné, puis consulter l'historique des fichiers déposés sous le formulaire. Les fichiers `validated` et `ingesting` sont rafraîchis automatiquement.
 3. Ouvrir `http://localhost:5000/search`, saisir `temperatur` : des valeurs telles que `temperature` apparaissent sous le champ avant la validation. Une date de fin antérieure à la date de début est signalée sous le champ sans navigation. Appuyer sur Entrée pour lancer la recherche : la page `/results` affiche 50 documents par page, le tri, le détail accessible de chaque document et le bouton d'export CSV.
 4. Vérifier les endpoints JSON : `/api/v1/stats`, `/api/v1/maintenance/forecast` et `/api/v1/files`.
 5. Créer les data views puis importer le dashboard Kibana :
@@ -229,7 +229,7 @@ curl localhost:8088/health
    ```
    Le dashboard `Smart Building IoT` restaure la période 7 jours, utilise la data view combinée `sb-logs-*,logs-*` et contient cinq visualisations : température moyenne 7 j en °C, alertes critiques 24 h, énergie kWh 1 min, occupation 7 j en pourcentage et prévisions de maintenance futures. L'import exige `success: true`, `successCount: 7` et l'absence d'avertissements.
 6. Ouvrir une URL inconnue : la page 404 Bootstrap s'affiche ; une URL `/api/v1/...` inconnue renvoie toujours une erreur JSON BNF4.
-7. Ouvrir `/privacy` et `/terms` : les deux pages sont accessibles depuis le pied de page et contiennent des champs à renseigner avant publication.
+7. Vérifier que `/privacy` et `/terms` renvoient une page 404 et qu'aucun lien juridique ni pastille `ELK` n'apparaît dans la navigation ou le pied de page.
 8. Vérifier que le favicon est servi sur `/static/favicon.svg` et qu'aucune page n'affiche de tag « Made with AI ».
 9. Vérifier l'autocomplétion au clavier : flèches, Entrée pour sélectionner une suggestion, Échap pour fermer la liste.
 10. Vérifier le style clair : cartes blanches à coins arrondis, ombres douces, contraste lisible, focus visible et aucun dégradé violet. Le point rouge d'alerte ne s'affiche que si des alertes critiques réelles sont présentes.
@@ -240,7 +240,8 @@ Commandes rapides :
 python scripts/check_api_contract.py
 python scripts/check_kibana_dashboard.py
 curl localhost:5000/
-curl localhost:5000/api/v1/stats
+curl 'localhost:5000/api/v1/stats?period=24h'
+curl 'localhost:5000/api/v1/stats?period=custom&from=2026-11-26T19:55:00Z&to=2026-11-27T19:55:00Z'
 curl localhost:5000/api/v1/maintenance/forecast
 curl 'localhost:5000/api/v1/suggest?q=temperatur&size=8'
 curl 'localhost:5000/api/v1/logs/export?q=temperatur&size=50' -o /tmp/logs-export.csv
@@ -252,4 +253,4 @@ bash -n kibana/setup_data_view.sh
 
 - Port de l'application web : 5000 dans le livrable d'architecture, 8000 dans le sujet. Valeur actuelle : 5000.
 - Version ELK figée à 8.17.0 : le layer de l'image 8.19.0 est corrompu dans le cache Docker local.
-- Durées de vie Redis appliquées : 60 s pour la température et les alertes 24 h, 10 s pour l'énergie sur une fenêtre d'1 min, 60 s pour l'occupation, 300 s pour les prévisions de maintenance et 30 s pour les suggestions ; la recherche complète n'est pas mise en cache. Les clés KPI sont versionées `elk:kpi:v2:*`. Seuils ELK-22 fixés dans le pipeline Logstash.
+- Durées de vie Redis appliquées : 60 s pour la température, les alertes et l'occupation, 10 s pour l'énergie, 300 s pour les prévisions de maintenance et 30 s pour les suggestions ; la recherche complète n'est pas mise en cache. Les clés KPI sont versionées `elk:kpi:v3:*` et intègrent la période pour les indicateurs sensibles au temps. Seuils ELK-22 fixés dans le pipeline Logstash.

@@ -13,6 +13,22 @@ class UploadInput(Schema):
     )
 
 
+class StatsQuery(Schema):
+    period = fields.String(
+        load_default="7d",
+        validate=OneOf(["1h", "24h", "7d", "30d", "custom"]),
+        metadata={"description": "Période prédéfinie ou personnalisée"},
+    )
+    date_from = fields.String(
+        data_key="from",
+        metadata={"format": "date-time", "description": "Début ISO-8601 inclus pour period=custom"},
+    )
+    date_to = fields.String(
+        data_key="to",
+        metadata={"format": "date-time", "description": "Fin ISO-8601 incluse pour period=custom"},
+    )
+
+
 class SearchQuery(Schema):
     q = fields.String(
         metadata={

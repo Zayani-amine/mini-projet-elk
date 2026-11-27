@@ -29,10 +29,10 @@
     return formatNumber(number) + (unit ? ' ' + unit : '');
   };
 
-  const formatDate = value => {
-    if (!value) return 'n/d';
+  const formatDate = (value, fallback) => {
+    if (!value) return fallback || 'n/d';
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
+    if (Number.isNaN(date.getTime())) return fallback || String(value);
     return new Intl.DateTimeFormat('fr-FR', {
       dateStyle: 'medium',
       timeStyle: 'short'
@@ -43,6 +43,19 @@
     if (!value) return '';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : date.toISOString();
+  };
+
+  const toLocalInput = value => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  };
+
+  const cleanLabel = value => {
+    const text = String(value === null || value === undefined ? '' : value).trim();
+    return text || 'Sans libellé';
   };
 
   const formatAge = seconds => {
@@ -116,6 +129,11 @@
     if (element) element.classList.toggle('d-none', !visible);
   };
 
+  const setAriaLabel = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.setAttribute('aria-label', value);
+  };
+
   const setFieldError = (input, errorId, message) => {
     if (input) {
       input.classList.toggle('is-invalid', Boolean(message));
@@ -178,21 +196,29 @@
     return values.reduce((sum, row) => sum + numberOr(row && row.count, 0), 0);
   };
 
+  let dashboardPeriodLabel = '7 j';
+
   const updateAlertState = count => {
     const active = Number.isFinite(count) && count > 0;
     ['alerts-dot', 'alerts-chart-dot', 'alerts-headline-dot', 'alerts-headline', 'alerts-action'].forEach(id => show(id, active));
     if (count === null || !Number.isFinite(count)) {
       setText('alert-status-global', 'Statut des alertes indisponible.');
     } else if (active) {
-      setText('alert-status-global', formatInteger(count) + ' alertes critiques sur les 24 dernières heures.');
+      setText('alert-status-global', formatInteger(count) + ' alertes critiques sur la période ' + dashboardPeriodLabel + '.');
     } else {
-      setText('alert-status-global', 'Aucune alerte critique sur les 24 dernières heures.');
+      setText('alert-status-global', 'Aucune alerte critique sur la période ' + dashboardPeriodLabel + '.');
     }
   };
+
+  const chartInstances = {};
 
   const makeChart = (id, config, hasData, dataId, dataRows) => {
     const canvas = document.getElementById(id);
     if (!canvas) return;
+    if (chartInstances[id]) {
+      chartInstances[id].destroy();
+      delete chartInstances[id];
+    }
     const wrapper = canvas.closest('.chart-wrap');
     const enabled = typeof Chart !== 'undefined';
     renderChartData(dataId, dataRows);
@@ -206,7 +232,7 @@
       empty.textContent = enabled ? 'Aucune donnée disponible pour cette période.' : 'Graphiques indisponibles.';
       wrapper.classList.toggle('chart-empty', !hasData || !enabled);
     }
-    if (enabled) new Chart(canvas, config);
+    if (enabled) chartInstances[id] = new Chart(canvas, config);
   };
 
   if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.font) {
@@ -219,19 +245,90 @@
     }
   }
 
+  const PERIOD_OPTIONS = ['1h', '24h', '7d', '30d', 'custom'];
+  let dashboardControlsBound = false;
+  let dashboardRequestId = 0;
+
+  const syncDashboardControlsFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get('period');
+    const select = document.getElementById('dashboard-period');
+    if (select) {
+      select.value = PERIOD_OPTIONS.indexOf(value) >= 0 ? value : '7d';
+    }
+    const from = document.getElementById('dashboard-from');
+    const to = document.getElementById('dashboard-to');
+    if (from) from.value = toLocalInput(params.get('from'));
+    if (to) to.value = toLocalInput(params.get('to'));
+    show('dashboard-custom-range', Boolean(select && select.value === 'custom'));
+    setText('dashboard-period-error', '');
+    show('dashboard-period-error', false);
+  };
+
+  const dashboardParamsFromControls = () => {
+    const select = document.getElementById('dashboard-period');
+    const values = { period: select && PERIOD_OPTIONS.indexOf(select.value) >= 0 ? select.value : '7d' };
+    if (values.period === 'custom') {
+      values.from = toIso(document.getElementById('dashboard-from').value);
+      values.to = toIso(document.getElementById('dashboard-to').value);
+    }
+    return values;
+  };
+
+  const applyDashboardParams = () => {
+    const values = dashboardParamsFromControls();
+    if (values.period === 'custom' && (!values.from || !values.to)) {
+      setText('dashboard-period-error', 'Renseignez une date de début et une date de fin.');
+      show('dashboard-period-error', true);
+      return false;
+    }
+    if (values.from && values.to && values.from >= values.to) {
+      setText('dashboard-period-error', 'La date de début doit précéder la date de fin.');
+      show('dashboard-period-error', true);
+      return false;
+    }
+    const params = buildQuery(values);
+    const suffix = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (suffix ? '?' + suffix : ''));
+    setText('dashboard-period-error', '');
+    show('dashboard-period-error', false);
+    return true;
+  };
+
+  const bindDashboardControls = () => {
+    const form = document.getElementById('dashboard-period-form');
+    const select = document.getElementById('dashboard-period');
+    if (dashboardControlsBound || !form || !select) return;
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (applyDashboardParams()) initDashboard();
+    });
+    select.addEventListener('change', () => show('dashboard-custom-range', select.value === 'custom'));
+    dashboardControlsBound = true;
+  };
+
   async function initDashboard() {
     if (!document.getElementById('dashboard-loading')) return;
+    const requestId = ++dashboardRequestId;
     const retry = document.getElementById('dashboard-retry');
     if (retry) retry.onclick = () => initDashboard();
+    syncDashboardControlsFromUrl();
+    bindDashboardControls();
     show('dashboard-loading', true);
     show('dashboard-error', false);
     try {
-      const data = await fetchJson('/api/v1/stats');
+      const params = buildQuery(dashboardParamsFromControls());
+      const data = await fetchJson('/api/v1/stats?' + params.toString());
+      if (requestId !== dashboardRequestId) return;
       const temperatures = asArray(data.temperature_avg);
       const alerts = asArray(data.critical_alerts_24h || data.critical_alerts_daily);
       const energy = data.energy_realtime && !Array.isArray(data.energy_realtime) ? data.energy_realtime : {};
       const occupancy = asArray(data.occupancy_rate);
       const maintenance = asArray(data.maintenance_forecast);
+      const periodMeta = (data.meta && data.meta.period) || {};
+      dashboardPeriodLabel = periodMeta.label || '7 j';
+      const periodFrom = formatDate(periodMeta.from, 'date indisponible');
+      const periodTo = formatDate(periodMeta.to, 'date indisponible');
       const temperatureMeta = metaFor(data, 'temperature_avg');
       const alertsMeta = metaFor(data, 'critical_alerts_24h');
       const energyMeta = metaFor(data, 'energy_realtime');
@@ -241,7 +338,7 @@
       const occupancyAverage = numberOr(occupancyMeta.global_avg, null);
       const alertCount = alertsMeta.status === 'no_data' ? null : criticalAlertCount(alerts);
       const energyTotal = numberOr(energy.total_kwh, null);
-      const energyFresh = energy.stale === false && energy.status === 'ok';
+      const energyHasData = Number.isFinite(energyTotal);
       const energyAge = numberOr(
         energy.age_seconds !== undefined ? energy.age_seconds : energyMeta.age_seconds,
         null
@@ -249,23 +346,39 @@
       const energyReading = energy.last_reading_at || energyMeta.last_reading_at;
       const energyUnits = asArray(energy.units);
       const waterUnit = energyUnits.find(unit => String(unit && unit.unit).toLowerCase() === 'm3');
-      let energyDetail = 'Aucune lecture kWh disponible';
-      if (energyReading) {
-        energyDetail = 'Dernier relevé : ' + formatDate(energyReading) + ' · il y a ' + formatAge(energyAge);
+      let energyDetail = 'Aucun relevé kWh sur cette période';
+      if (energyHasData) {
+        energyDetail = formatNumber(energyTotal) + ' kWh cumulés';
+        if (energyReading) {
+          energyDetail += ' · dernier relevé : ' + formatDate(energyReading) + ' · il y a ' + formatAge(energyAge);
+        }
       }
       if (waterUnit && Number.isFinite(Number(waterUnit.total))) {
         energyDetail += ' · Eau : ' + formatNumber(waterUnit.total) + ' m3';
       }
 
+      setText('dashboard-period-summary', 'Période affichée : ' + dashboardPeriodLabel + ' du ' + periodFrom + ' au ' + periodTo);
+      setText('label-temperature', 'Température moyenne · ' + dashboardPeriodLabel);
+      setText('label-alerts-text', 'Alertes critiques · ' + dashboardPeriodLabel);
+      setText('label-energy', 'Énergie (kWh) · ' + dashboardPeriodLabel);
+      setText('label-occupancy', 'Taux d’occupation · ' + dashboardPeriodLabel);
+      setText('label-chart-temperature', 'Température moyenne par zone · ' + dashboardPeriodLabel);
+      setText('label-chart-alerts-text', 'Alertes critiques · ' + dashboardPeriodLabel);
+      setText('label-chart-energy', 'Consommation d’énergie (kWh) · ' + dashboardPeriodLabel);
+      setText('label-chart-occupancy', 'Taux d’occupation par salle · ' + dashboardPeriodLabel);
+      setAriaLabel('chart-temperature', 'Température moyenne par zone sur ' + dashboardPeriodLabel);
+      setAriaLabel('chart-alerts', 'Alertes critiques sur ' + dashboardPeriodLabel);
+      setAriaLabel('chart-energy', 'Consommation électrique en kWh sur ' + dashboardPeriodLabel);
+      setAriaLabel('chart-occupancy', 'Taux d’occupation moyen par salle sur ' + dashboardPeriodLabel);
       setText('kpi-temperature', Number.isFinite(temperatureAverage) ? formatNumber(temperatureAverage) + ' °C' : 'n/d');
       setText('kpi-alerts', alertCount === null ? 'n/d' : formatInteger(alertCount));
-      setText('kpi-energy', energyFresh && Number.isFinite(energyTotal) ? formatNumber(energyTotal) + ' kWh' : 'n/d');
+      setText('kpi-energy', energyHasData ? formatNumber(energyTotal) + ' kWh' : 'n/d');
       setText('kpi-occupancy', Number.isFinite(occupancyAverage) ? formatNumber(occupancyAverage) + ' %' : 'n/d');
       setText('kpi-maintenance', maintenanceMeta.status === 'no_data' ? 'n/d' : formatInteger(maintenance.length));
-      setText('kpi-temperature-detail', 'Moyenne globale · 7 j');
-      setText('kpi-alerts-detail', 'Fenêtre glissante · 24 h');
+      setText('kpi-temperature-detail', 'Moyenne globale · ' + dashboardPeriodLabel);
+      setText('kpi-alerts-detail', 'Fenêtre glissante · ' + dashboardPeriodLabel);
       setText('kpi-energy-detail', energyDetail);
-      setText('kpi-occupancy-detail', 'Moyenne globale · 7 j');
+      setText('kpi-occupancy-detail', 'Moyenne globale · ' + dashboardPeriodLabel);
       setText('kpi-maintenance-detail', 'Échéances futures');
       updateAlertState(alertCount);
 
@@ -298,12 +411,12 @@
           y: { beginAtZero: true, grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } }
         }
       };
-      const temperatureLabels = temperatures.map(row => (row && row.zone) || 'n/d');
-      const alertLabels = alerts.map(row => String((row && row.hour) || (row && row.day) || '').slice(11, 16) || 'n/d');
+      const temperatureLabels = temperatures.map(row => cleanLabel(row && row.zone));
+      const alertLabels = alerts.map(row => cleanLabel(String((row && row.hour) || (row && row.day) || '').replace('T', ' ').slice(5, 16)));
       const energyBuckets = asArray(energy.buckets).filter(row => String(row && row.unit).toLowerCase() === 'kwh');
-      const energyLabels = energyBuckets.map(row => String((row && row.minute) || '').slice(11, 16) || 'n/d');
-      const occupancyLabels = occupancy.map(row => (row && row.room) || 'n/d');
-      const maintenanceLabels = maintenance.map(row => (row && row.equipment_id) || 'n/d');
+      const energyLabels = energyBuckets.map(row => cleanLabel(String((row && row.bucket) || (row && row.minute) || '').replace('T', ' ').slice(0, 16)));
+      const occupancyLabels = occupancy.map(row => cleanLabel(row && row.room));
+      const maintenanceLabels = maintenance.map(row => cleanLabel(row && row.equipment_id));
       const temperatureValues = temperatures.map(row => numberOr(row && row.avg, null));
       const alertValues = alerts.map(row => numberOr(row && row.count, null));
       const energyValues = energyBuckets.map(row => numberOr(row && row.total, null));
@@ -343,7 +456,7 @@
         data: {
           labels: alertLabels,
           datasets: [{
-            label: 'Alertes critiques (24 h)',
+            label: 'Alertes critiques · ' + dashboardPeriodLabel,
             data: alertValues,
             borderColor: '#ff3b30',
             backgroundColor: 'rgba(255, 59, 48, 0.12)',
@@ -362,7 +475,7 @@
         data: {
           labels: energyLabels,
           datasets: [{
-            label: 'Énergie (kWh) · 1 min',
+            label: 'Énergie (kWh) · ' + dashboardPeriodLabel,
             data: energyValues,
             borderColor: '#34c759',
             backgroundColor: 'rgba(52, 199, 89, 0.12)',
@@ -454,10 +567,10 @@
           const wear = numberOr(item.wear_level, null);
           const tr = document.createElement('tr');
           [
-            item.equipment_id || 'n/d',
-            item.predicted_failure || 'n/d',
+            cleanLabel(item.equipment_id),
+            item.predicted_failure === true ? 'Oui' : item.predicted_failure === false ? 'Non' : 'n/d',
             Number.isFinite(wear) ? formatNumber(wear, 0) + ' %' : 'n/d',
-            formatDate(item.estimated_due_date)
+            formatDate(item.estimated_due_date, 'Échéance indisponible')
           ].forEach(value => {
             const td = document.createElement('td');
             td.textContent = String(value);
@@ -468,13 +581,14 @@
       }
       show('maintenance-table-card', maintenance.length > 0);
     } catch (error) {
+      if (requestId !== dashboardRequestId) return;
       setText('dashboard-error-message', ' ' + error.message);
       show('dashboard-error', true);
-      ['kpi-temperature', 'kpi-alerts', 'kpi-energy', 'kpi-occupancy', 'kpi-maintenance'].forEach(id => setText(id, 'n/d'));
+      ['kpi-temperature', 'kpi-alerts', 'kpi-energy', 'kpi-occupancy', 'kpi-maintenance'].forEach(id => setText(id, 'Indisponible'));
       ['kpi-temperature-detail', 'kpi-alerts-detail', 'kpi-energy-detail', 'kpi-occupancy-detail', 'kpi-maintenance-detail'].forEach(id => setText(id, 'Indisponible'));
       updateAlertState(null);
     } finally {
-      show('dashboard-loading', false);
+      if (requestId === dashboardRequestId) show('dashboard-loading', false);
     }
   }
 
@@ -599,13 +713,14 @@
         if (xhr.status >= 200 && xhr.status < 300) {
           const result = payload || {};
           setText('upload-result-title', 'Fichier envoyé : ' + (result.original_name || selected.name));
-          setText('upload-file-id', result.file_id || 'n/d');
+          setText('upload-file-id', result.file_id || 'Identifiant indisponible');
           setText('upload-result-meta', [
             result.log_type ? 'Type : ' + result.log_type : '',
             result.logs_count !== undefined ? formatInteger(result.logs_count) + ' lignes' : '',
             result.status ? 'Statut : ' + result.status : ''
           ].filter(Boolean).join(' · '));
           show('upload-result', true);
+          initUploadHistory();
           selected = null;
           input.value = '';
           setText('upload-file-name', 'Aucun fichier sélectionné');
@@ -620,6 +735,118 @@
       });
       xhr.send(form);
     });
+  }
+
+  let uploadHistoryTimer = null;
+
+  const formatFileSize = value => {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes)) return 'Taille indisponible';
+    if (bytes < 1024) return bytes + ' o';
+    if (bytes < 1024 * 1024) return formatNumber(bytes / 1024) + ' Ko';
+    return formatNumber(bytes / 1024 / 1024) + ' Mo';
+  };
+
+  const uploadStatusCell = row => {
+    const cell = document.createElement('td');
+    const status = String((row && row.status) || '').trim();
+    if (!status) {
+      cell.textContent = 'Statut indisponible';
+      return cell;
+    }
+    const badge = document.createElement('span');
+    const classes = {
+      indexed: 'text-bg-success',
+      failed: 'text-bg-danger',
+      ingesting: 'text-bg-info',
+      validated: 'text-bg-secondary'
+    };
+    badge.className = 'badge ' + (classes[status] || 'text-bg-secondary');
+    badge.textContent = status;
+    cell.appendChild(badge);
+    if (row.error_message) {
+      const error = document.createElement('div');
+      error.className = 'small text-danger mt-1';
+      error.textContent = String(row.error_message);
+      cell.appendChild(error);
+    }
+    return cell;
+  };
+
+  async function initUploadHistory() {
+    const list = document.getElementById('upload-history-list');
+    if (!list) return;
+    const retry = document.getElementById('upload-history-retry');
+    if (retry && retry.dataset.bound !== '1') {
+      retry.addEventListener('click', () => initUploadHistory());
+      retry.dataset.bound = '1';
+    }
+    if (uploadHistoryTimer) {
+      window.clearTimeout(uploadHistoryTimer);
+      uploadHistoryTimer = null;
+    }
+    try {
+      const data = await fetchJson('/api/v1/files?size=10');
+      const rows = asArray(data.files);
+      list.replaceChildren();
+      if (!rows.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.className = 'text-muted small';
+        cell.textContent = 'Aucun fichier déposé.';
+        row.appendChild(cell);
+        list.appendChild(row);
+      }
+      rows.forEach(entry => {
+        const item = entry || {};
+        const row = document.createElement('tr');
+        const name = document.createElement('td');
+        name.className = 'small fw-semibold';
+        name.textContent = cleanLabel(item.original_name);
+        row.appendChild(name);
+        const type = document.createElement('td');
+        type.className = 'small';
+        type.textContent = item.log_type || 'Non renseigné';
+        row.appendChild(type);
+        const size = document.createElement('td');
+        size.className = 'small';
+        size.textContent = formatFileSize(item.size_bytes);
+        row.appendChild(size);
+        const lines = document.createElement('td');
+        lines.className = 'small';
+        const count = item.indexed_count !== undefined ? item.indexed_count : item.logs_count;
+        lines.textContent = formatInteger(count) === 'n/d' ? 'Non disponible' : formatInteger(count);
+        row.appendChild(lines);
+        row.appendChild(uploadStatusCell(item));
+        const uploaded = document.createElement('td');
+        uploaded.className = 'small text-muted';
+        uploaded.textContent = formatDate(item.uploaded_at, 'Date indisponible');
+        row.appendChild(uploaded);
+        const details = document.createElement('td');
+        const link = document.createElement('a');
+        link.className = 'small';
+        link.href = '/api/v1/files/' + encodeURIComponent(item.file_id || '');
+        link.textContent = 'JSON';
+        details.appendChild(link);
+        row.appendChild(details);
+        list.appendChild(row);
+      });
+      setText('upload-history-status', formatInteger(data.total) + ' fichier(s) déposé(s)');
+      if (rows.some(item => ['validated', 'ingesting'].indexOf(String(item && item.status)) >= 0)) {
+        uploadHistoryTimer = window.setTimeout(() => initUploadHistory(), 10000);
+      }
+    } catch (error) {
+      list.replaceChildren();
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.colSpan = 7;
+      cell.className = 'text-danger small';
+      cell.textContent = 'Historique indisponible.';
+      row.appendChild(cell);
+      list.appendChild(row);
+      setText('upload-history-status', error.message);
+    }
   }
 
   async function initHistory() {
@@ -1022,6 +1249,7 @@
     initDashboard();
     initNavAlerts();
     initUpload();
+    initUploadHistory();
     initSearch();
     initResults();
   };
