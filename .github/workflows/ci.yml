@@ -94,13 +94,17 @@ jobs:
           grep -q 'aria-valuetext' app/templates/upload.html
           grep -q '.skip-link' app/static/css/app.css
           grep -q 'prefers-reduced-motion' app/static/css/app.css
-          ! grep -Rqi 'temps réel' app/templates app/static/js/app.js
+          ! grep -Rqi 'temps réel' app/templates app/static/js/app.js kibana/saved_objects README.md docs
           ! grep -Rq 'résultat(s)' app/templates app/static/js/app.js
           ! grep -Rq 'occurrence(s)' app/templates app/static/js/app.js
+          ! grep -Rq 'Alertes critiques par jour' kibana/saved_objects README.md docs
+          ! grep -Rq 'Énergie temps réel' kibana/saved_objects README.md docs
           grep -q 'text/csv' app/api/dashboard.py
           grep -q 'XMLHttpRequest' app/static/js/app.js
           bash -n kibana/import_dashboard.sh
+          bash -n kibana/setup_data_view.sh
           python -c "import json,pathlib; [json.loads(line) for line in pathlib.Path('kibana/saved_objects/elk-dashboard.ndjson').read_text().splitlines()]"
+          python scripts/check_kibana_dashboard.py
           grep -q 'threshold_breached' elasticsearch/templates/logs-alertes.json
           grep -q 'threshold_breached' elasticsearch/templates/logs-occupation.json
           grep -q 'api_v1_search' app/app.py

@@ -61,7 +61,7 @@ mongodb/
 redis/
   redis.conf            cache (ELK-14)
 kibana/
-  setup_data_view.sh    data view logs-* (ELK-17)
+  setup_data_view.sh    data views logs-*, sb-logs-* et sb-logs-*,logs-* (ELK-17)
   dashboards/           exports JSON (ELK-31)
   visualizations/       exports JSON (ELK-31)
 app/
@@ -131,7 +131,7 @@ Ports exposés : `5000` (Flask), `9200` (Elasticsearch), `5601` (Kibana), `${MON
 - MongoDB Compass : `mongodb://admin:<MONGO_INITDB_ROOT_PASSWORD>@localhost:${MONGODB_PORT:-27017}/?authSource=admin`, puis base `elk_logs`, collection `files`. Le mot de passe est celui de `.env` ; ne pas le versionner.
 - API Logstash (interne) : `http://elk-logstash:9600/_node/pipelines`
 
-Logstash utilise `pipelines.yml` avec quatre pipelines : `bootstrap` (`data/inbox/*.json`, stdout), `generated-to-es` (`data/inbox/generated/*.json`), `uploads-csv` (`data/inbox/uploads/*.csv`) et `uploads-json` (`data/inbox/uploads/*.json`). `06-uploads-to-es.conf` a été supprimé. Les uploads TXT sont convertis en CSV par Flask avant dépôt dans l'inbox, donc aucun fichier n'est ingéré deux fois. `pipeline.workers: 1` reste requis pour l'auto-détection des en-têtes CSV. Les uploads sont indexés dans `sb-logs-<type>-YYYY.MM` (préfixe `sb-logs` pour éviter le template de data stream intégré `logs-*-*` d'Elasticsearch 8) avec `source_file_id`. Les événements invalides sont tagués et envoyés dans `ingest-errors` ; le polleur Flask passe alors le fichier Mongo au statut `failed`. Le marquage des seuils est recalculé si le booléen est absent ou invalide : température > 26, humidité > 65, CO2 > 1000, alertes value > threshold, énergie quantity > 100, maintenance wear_level > 75, occupation occupancy_rate > 80. Les data views `logs-*` et `sb-logs-*` sont créées par `kibana/setup_data_view.sh`.
+Logstash utilise `pipelines.yml` avec quatre pipelines : `bootstrap` (`data/inbox/*.json`, stdout), `generated-to-es` (`data/inbox/generated/*.json`), `uploads-csv` (`data/inbox/uploads/*.csv`) et `uploads-json` (`data/inbox/uploads/*.json`). `06-uploads-to-es.conf` a été supprimé. Les uploads TXT sont convertis en CSV par Flask avant dépôt dans l'inbox, donc aucun fichier n'est ingéré deux fois. `pipeline.workers: 1` reste requis pour l'auto-détection des en-têtes CSV. Les uploads sont indexés dans `sb-logs-<type>-YYYY.MM` (préfixe `sb-logs` pour éviter le template de data stream intégré `logs-*-*` d'Elasticsearch 8) avec `source_file_id`. Les événements invalides sont tagués et envoyés dans `ingest-errors` ; le polleur Flask passe alors le fichier Mongo au statut `failed`. Le marquage des seuils est recalculé si le booléen est absent ou invalide : température > 26, humidité > 65, CO2 > 1000, alertes value > threshold, énergie quantity > 100, maintenance wear_level > 75, occupation occupancy_rate > 80. Les data views `logs-*`, `sb-logs-*` et `sb-logs-*,logs-*` sont créées par `kibana/setup_data_view.sh`. La vue combinée est celle que le tableau de bord et les visualisations utilisent.
 
 ## Schémas de données (S2)
 
@@ -227,7 +227,7 @@ curl localhost:8088/health
    bash kibana/setup_data_view.sh
    bash kibana/import_dashboard.sh
    ```
-   Le dashboard `Smart Building IoT` contient 3 visualisations historiques : température par zone/heure, alertes critiques par jour et énergie temps réel. Sa version corrigée est préparée séparément.
+   Le dashboard `Smart Building IoT` restaure la période 7 jours, utilise la data view combinée `sb-logs-*,logs-*` et contient cinq visualisations : température moyenne 7 j en °C, alertes critiques 24 h, énergie kWh 1 min, occupation 7 j en pourcentage et prévisions de maintenance futures. L'import exige `success: true`, `successCount: 7` et l'absence d'avertissements.
 6. Ouvrir une URL inconnue : la page 404 Bootstrap s'affiche ; une URL `/api/v1/...` inconnue renvoie toujours une erreur JSON BNF4.
 7. Ouvrir `/privacy` et `/terms` : les deux pages sont accessibles depuis le pied de page et contiennent des champs à renseigner avant publication.
 8. Vérifier que le favicon est servi sur `/static/favicon.svg` et qu'aucune page n'affiche de tag « Made with AI ».
@@ -238,12 +238,14 @@ Commandes rapides :
 
 ```bash
 python scripts/check_api_contract.py
+python scripts/check_kibana_dashboard.py
 curl localhost:5000/
 curl localhost:5000/api/v1/stats
 curl localhost:5000/api/v1/maintenance/forecast
 curl 'localhost:5000/api/v1/suggest?q=temperatur&size=8'
 curl 'localhost:5000/api/v1/logs/export?q=temperatur&size=50' -o /tmp/logs-export.csv
 bash -n kibana/import_dashboard.sh
+bash -n kibana/setup_data_view.sh
 ```
 
 ## Points à consigner suite à la revue n°1
