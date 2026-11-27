@@ -87,12 +87,13 @@ jobs:
           grep -q 'href="/terms"' app/templates/base.html
           grep -q 'PUBLIC_BASE_URL' .env.example
           grep -q 'PUBLIC_DOMAIN' docker-compose.yml
-          grep -q 'backdrop-filter' app/static/css/app.css
-          grep -q -- '--elk-glass' app/static/css/app.css
+          grep -q 'color-scheme: light' app/static/css/app.css
+          grep -q -- '--elk-surface' app/static/css/app.css
+          grep -q -- '--elk-radius-card' app/static/css/app.css
           grep -q '.status-dot' app/static/css/app.css
           grep -q 'updateAlertState' app/static/js/app.js
           grep -q 'alert-status-global' app/templates/base.html
-          grep -q 'nav-alert-dot' app/templates/base.html
+          ! grep -q 'backdrop-filter' app/static/css/app.css
           ! grep -Rq 'gradient(' app/templates app/static/css
           ! grep -Rqi 'purple' app/templates app/static/css
           ! grep -Rq 'rounded-pill' app/templates app/static/css
