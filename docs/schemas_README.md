@@ -17,9 +17,9 @@ Les templates ont la priorité 200 : Elasticsearch 8 fournit un template intégr
 
     bash kibana/setup_data_view.sh
 
-Crée la data view `logs-*` avec `@timestamp` comme champ temporel. Le script est idempotent : si la vue existe déjà, il ne fait rien.
+Crée les data views `logs-*`, `sb-logs-*` et `sb-logs-*,logs-*` avec `@timestamp` comme champ temporel. Le script est idempotent : si une vue existe déjà, il ne fait rien. La vue combinée est utilisée par le tableau de bord pour couvrir à la fois les logs générés et les uploads.
 
-Logstash indexe les JSONL générés dans `logs-<type>` via `logstash/pipeline/05-generated-to-es.conf`. Les champs `ingested_at` et `source_file_id` sont ajoutés côté Logstash.
+Logstash indexe les JSONL générés dans `logs-<type>` via `logstash/pipeline/05-generated-to-es.conf`. Les uploads sont indexés dans `sb-logs-<type>-YYYY.MM`. Les champs `ingested_at` et `source_file_id` sont ajoutés côté Logstash.
 
 ## MongoDB
 

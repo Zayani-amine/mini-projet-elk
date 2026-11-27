@@ -13,8 +13,17 @@ if [ ! -f "$NDJSON_FILE" ]; then
   exit 1
 fi
 
-curl -sS --fail-with-body -u "$ES_USER:$ELASTIC_PASSWORD" \
+response="$(curl -sS -u "$ES_USER:$ELASTIC_PASSWORD" \
   -X POST "$KIBANA_URL/api/saved_objects/_import?overwrite=true" \
   -H 'kbn-xsrf: true' \
-  -F "file=@$NDJSON_FILE"
-echo
+  -F "file=@$NDJSON_FILE" \
+  -w '\n%{http_code}')"
+code="${response##*$'\n'}"
+body="${response%$'\n'*}"
+
+if [ "$code" != "200" ]; then
+  echo "$body" >&2
+  exit 1
+fi
+
+python3 -c 'import json,sys; data=json.loads(sys.argv[1]); assert data.get("success") is True and data.get("successCount") == 7 and not data.get("warnings"), data; print("IMPORT_OK count=%d" % data["successCount"])' "$body"
