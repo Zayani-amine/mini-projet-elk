@@ -148,6 +148,14 @@ jobs:
           ! grep -Rq 'Made with AI' app/templates app/static
           ! grep -Rq '⇪' app/templates
           ! grep -Rq '—' app/templates app/static/js/app.js app/app.py
+          grep -qF '.chart-wrap:not(.chart-empty) .chart-empty-message' app/static/css/app.css
+          grep -qF 'white-space: nowrap' app/static/css/app.css
+          grep -qF '"label": "7j"' app/services/dashboard_stats.py
+          ! grep -qF "'7 j'" app/static/js/app.js
+          grep -qF '\u00A0j' app/static/js/app.js
+          ! grep -qF 'Get Started' app/templates/index.html
+          grep -qF 'kibana/setup_data_view.sh' scripts/deploy.sh
+          grep -qF 'kibana/import_dashboard.sh' scripts/deploy.sh
       - run: |
           set -euo pipefail
           python scripts/generate_logs.py --sensors 20 --hours 1 --seed 0 --format json --out /tmp/elk-ci-logs

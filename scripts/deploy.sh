@@ -114,6 +114,13 @@ if [ "$ready" != "1" ]; then
   exit 1
 fi
 
+set -a
+. ./.env
+set +a
+
+KIBANA_URL="${KIBANA_URL:-http://localhost:5601}" bash kibana/setup_data_view.sh
+KIBANA_URL="$KIBANA_URL" bash kibana/import_dashboard.sh
+
 echo
 echo "Stack deployed."
 echo "Kibana: http://localhost:5601"

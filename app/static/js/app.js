@@ -68,9 +68,9 @@
     const minutes = Math.floor(remaining / 60);
     remaining -= minutes * 60;
     const parts = [];
-    if (days) parts.push(days + ' j');
-    if (hours) parts.push(hours + ' h');
-    if (minutes) parts.push(minutes + ' min');
+    if (days) parts.push(days + '\u00A0j');
+    if (hours) parts.push(hours + '\u00A0h');
+    if (minutes) parts.push(minutes + '\u00A0min');
     parts.push(remaining + ' s');
     return parts.join(' ');
   };
@@ -196,7 +196,7 @@
     return values.reduce((sum, row) => sum + numberOr(row && row.count, 0), 0);
   };
 
-  let dashboardPeriodLabel = '7 j';
+  let dashboardPeriodLabel = '7j';
 
   const updateAlertState = count => {
     const active = Number.isFinite(count) && count > 0;
@@ -326,7 +326,7 @@
       const occupancy = asArray(data.occupancy_rate);
       const maintenance = asArray(data.maintenance_forecast);
       const periodMeta = (data.meta && data.meta.period) || {};
-      dashboardPeriodLabel = periodMeta.label || '7 j';
+      dashboardPeriodLabel = periodMeta.label || '7j';
       const periodFrom = formatDate(periodMeta.from, 'date indisponible');
       const periodTo = formatDate(periodMeta.to, 'date indisponible');
       const temperatureMeta = metaFor(data, 'temperature_avg');

@@ -12,10 +12,10 @@ MAINTENANCE_INDEX_PATTERN = os.environ.get(
 DEFAULT_PERIOD = "7d"
 MAX_CUSTOM_SECONDS = 90 * 24 * 3600
 PERIOD_PRESETS = {
-    "1h": {"label": "1 h", "duration_seconds": 3600, "interval": "1m"},
-    "24h": {"label": "24 h", "duration_seconds": 24 * 3600, "interval": "1h"},
-    "7d": {"label": "7 j", "duration_seconds": 7 * 24 * 3600, "interval": "1h"},
-    "30d": {"label": "30 j", "duration_seconds": 30 * 24 * 3600, "interval": "1d"},
+    "1h": {"label": "1h", "duration_seconds": 3600, "interval": "1m"},
+    "24h": {"label": "24h", "duration_seconds": 24 * 3600, "interval": "1h"},
+    "7d": {"label": "7j", "duration_seconds": 7 * 24 * 3600, "interval": "1h"},
+    "30d": {"label": "30j", "duration_seconds": 30 * 24 * 3600, "interval": "1d"},
 }
 PERIOD_VALUES = tuple(PERIOD_PRESETS) + ("custom",)
 
