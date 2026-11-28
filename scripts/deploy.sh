@@ -118,8 +118,20 @@ set -a
 . ./.env
 set +a
 
-KIBANA_URL="${KIBANA_URL:-http://localhost:5601}" bash kibana/setup_data_view.sh
-KIBANA_URL="$KIBANA_URL" bash kibana/import_dashboard.sh
+KIBANA_URL="${KIBANA_URL:-http://localhost:5601}"
+export KIBANA_URL
+bash kibana/setup_data_view.sh
+bash kibana/import_dashboard.sh
+
+if docker compose ps --services --filter status=running | grep -qx proxy; then
+  docker compose --profile proxy restart proxy
+  for _ in $(seq 1 15); do
+    if curl -fsS http://localhost:8088/health >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+fi
 
 echo
 echo "Stack deployed."
