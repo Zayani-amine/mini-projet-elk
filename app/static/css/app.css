@@ -686,6 +686,7 @@ a:hover {
   font-size: 1.6rem;
   font-weight: 700;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .sb-kpi-detail {
@@ -733,6 +734,10 @@ a:hover {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.chart-wrap:not(.chart-empty) .chart-empty-message {
+  display: none;
 }
 
 .chart-data {
