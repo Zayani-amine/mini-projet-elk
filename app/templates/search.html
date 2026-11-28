@@ -3,11 +3,14 @@
 {% block content %}
 <div class="row g-4">
   <div class="col-lg-8">
-    <h1 class="h3 mb-1">Recherche de logs</h1>
-    <p class="text-muted mb-4">Recherche plein texte tolérant aux fautes, avec filtres sur le type, la période et l'entité.</p>
+    <div class="sb-page-heading">
+      <p class="sb-eyebrow">Recherche</p>
+      <h1>Recherche de logs</h1>
+      <p class="sb-page-subtitle">Recherche plein texte tolérant aux fautes, avec filtres sur le type, la période et l'entité.</p>
+    </div>
 
     <div class="card shadow-sm">
-      <div class="card-body p-4">
+      <div class="card-body">
         <form id="search-form" method="get" action="/results" novalidate>
           <div class="mb-3">
             <label for="q" class="form-label">Mots-clés</label>
