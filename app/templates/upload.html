@@ -3,14 +3,17 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-8">
-    <h1 class="h3 mb-1">Déposer un fichier de logs</h1>
-    <p class="text-muted mb-4">Les fichiers sont validés puis publiés vers Logstash pour indexation dans Elasticsearch.</p>
+    <div class="sb-page-heading">
+      <p class="sb-eyebrow">Ingestion</p>
+      <h1>Déposer un fichier de logs</h1>
+      <p class="sb-page-subtitle">Les fichiers sont validés puis publiés vers Logstash pour indexation dans Elasticsearch.</p>
+    </div>
 
     <div class="card shadow-sm">
-      <div class="card-body p-4">
+      <div class="card-body">
         <div id="upload-dropzone" class="dropzone text-center rounded-3 p-5" role="button" tabindex="0" aria-label="Choisir un fichier ou le déposer ici" aria-describedby="upload-formats upload-file-name">
           <div class="upload-icon mb-3" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 16V4 M7 9l5-5 5 5 M4 20h16"></path>
             </svg>
           </div>
@@ -35,7 +38,7 @@
 
         <div class="d-flex justify-content-end mt-4">
           <a href="/search" class="btn btn-link me-auto">Rechercher des logs</a>
-          <button id="upload-submit" type="button" class="btn btn-success px-4" disabled>Envoyer le fichier</button>
+          <button id="upload-submit" type="button" class="btn btn-primary px-4" disabled>Envoyer le fichier</button>
         </div>
       </div>
     </div>

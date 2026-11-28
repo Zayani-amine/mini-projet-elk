@@ -238,8 +238,8 @@
   if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.font) {
     Chart.defaults.font.family = "system-ui, -apple-system, 'Segoe UI', sans-serif";
     Chart.defaults.font.size = 12;
-    Chart.defaults.color = '#6e6e73';
-    Chart.defaults.borderColor = '#e8e8ed';
+    Chart.defaults.color = '#69707a';
+    Chart.defaults.borderColor = '#e8ecf2';
     if (Chart.defaults.plugins && Chart.defaults.plugins.legend) {
       Chart.defaults.plugins.legend.labels = Object.assign({}, Chart.defaults.plugins.legend.labels, { boxWidth: 12 });
     }
@@ -407,8 +407,8 @@
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } },
-          y: { beginAtZero: true, grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } }
+          x: { grid: { color: '#e8ecf2' }, ticks: { color: '#69707a' } },
+          y: { beginAtZero: true, grid: { color: '#e8ecf2' }, ticks: { color: '#69707a' } }
         }
       };
       const temperatureLabels = temperatures.map(row => cleanLabel(row && row.zone));
@@ -434,17 +434,17 @@
           datasets: [{
             label: 'Température (°C)',
             data: temperatureValues,
-            backgroundColor: '#0071e3',
+            backgroundColor: '#0061f2',
             borderRadius: 6
           }]
         },
         options: Object.assign({}, axisOptions, {
           scales: {
-            x: { grid: { color: '#e8e8ed' }, ticks: { color: '#6e6e73' } },
+            x: { grid: { color: '#e8ecf2' }, ticks: { color: '#69707a' } },
             y: {
               beginAtZero: true,
-              grid: { color: '#e8e8ed' },
-              ticks: { color: '#6e6e73' },
+              grid: { color: '#e8ecf2' },
+              ticks: { color: '#69707a' },
               title: { display: true, text: '°C' }
             }
           }
@@ -458,13 +458,13 @@
           datasets: [{
             label: 'Alertes critiques · ' + dashboardPeriodLabel,
             data: alertValues,
-            borderColor: '#ff3b30',
-            backgroundColor: 'rgba(255, 59, 48, 0.12)',
-            pointBackgroundColor: '#ff3b30',
+            borderColor: '#e81500',
+            backgroundColor: 'rgba(232, 21, 0, 0.10)',
+            pointBackgroundColor: '#e81500',
             pointRadius: 2,
             borderWidth: 2,
             fill: true,
-            tension: 0.2
+            tension: 0.4
           }]
         },
         options: axisOptions
@@ -477,13 +477,13 @@
           datasets: [{
             label: 'Énergie (kWh) · ' + dashboardPeriodLabel,
             data: energyValues,
-            borderColor: '#34c759',
-            backgroundColor: 'rgba(52, 199, 89, 0.12)',
-            pointBackgroundColor: '#34c759',
+            borderColor: '#00ac69',
+            backgroundColor: 'rgba(0, 172, 105, 0.10)',
+            pointBackgroundColor: '#00ac69',
             pointRadius: 2,
             borderWidth: 2,
             fill: true,
-            tension: 0.2
+            tension: 0.4
           }]
         },
         options: axisOptions
@@ -496,7 +496,7 @@
           datasets: [{
             label: 'Taux d’occupation (%)',
             data: occupancyValues,
-            backgroundColor: ['#0071e3', '#34c759', '#ff9500', '#8e8e93'],
+            backgroundColor: ['#0061f2', '#6900c7', '#00ac69', '#00cfd5', '#f4a100'],
             borderWidth: 1,
             borderColor: '#ffffff'
           }]
@@ -519,7 +519,7 @@
           datasets: [{
             label: 'Usure (%)',
             data: maintenanceValues,
-            backgroundColor: '#ff9500',
+            backgroundColor: '#f4a100',
             borderRadius: 6
           }]
         },
@@ -545,10 +545,10 @@
             x: {
               beginAtZero: true,
               max: 100,
-              grid: { color: '#e8e8ed' },
-              ticks: { color: '#6e6e73' }
+              grid: { color: '#e8ecf2' },
+              ticks: { color: '#69707a' }
             },
-            y: { grid: { display: false }, ticks: { color: '#6e6e73' } }
+            y: { grid: { display: false }, ticks: { color: '#69707a' } }
           }
         }
       }, hasFinite(maintenanceValues), 'chart-maintenance-data', maintenanceLabels.map((label, index) => {

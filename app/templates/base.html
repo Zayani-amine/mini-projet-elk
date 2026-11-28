@@ -12,33 +12,106 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
   <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
-<body class="d-flex flex-column min-vh-100">
+<body class="sb-app">
   <a class="skip-link" href="#main-content">Aller au contenu principal</a>
   <span id="alert-status-global" class="visually-hidden" role="status" aria-atomic="true"></span>
-  <nav class="navbar navbar-expand-lg navbar-dark" aria-label="Navigation principale">
-    <div class="container">
-      <a class="navbar-brand fw-semibold" href="/">Smart Building</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Afficher le menu">
-        <span class="navbar-toggler-icon"></span>
+
+  <header class="sb-topbar">
+    <a class="sb-brand" href="/">Smart Building</a>
+    <button class="sb-nav-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Afficher ou masquer le menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 7h16 M4 12h16 M4 17h16"></path>
+      </svg>
+    </button>
+    <form class="sb-top-search" role="search" action="/search" method="get">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-3.5-3.5"></path>
+      </svg>
+      <input type="search" name="q" placeholder="Rechercher dans les logs" aria-label="Rechercher dans les logs">
+    </form>
+    <div class="sb-top-actions">
+      <a class="sb-docs-link" href="/docs" target="_blank" rel="noopener">Documentation <span aria-hidden="true">&gt;</span><span class="visually-hidden">(ouvre un nouvel onglet)</span></a>
+      <button class="sb-icon-button" type="button" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
+          <path d="M10 21h4"></path>
+        </svg>
       </button>
-      <div class="collapse navbar-collapse" id="mainNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/" {{ 'aria-current=page' if request.path == '/' else '' }}>Accueil</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active' if request.path == '/upload' else '' }}" href="/upload" {{ 'aria-current=page' if request.path == '/upload' else '' }}>Upload</a></li>
-          <li class="nav-item"><a class="nav-link {{ 'active' if request.path in ('/search', '/results') else '' }}" href="/search" {{ 'aria-current=page' if request.path in ('/search', '/results') else '' }}>Recherche</a></li>
-          <li class="nav-item"><a class="nav-link" href="/docs" target="_blank" rel="noopener">API docs <span class="visually-hidden">(ouvre un nouvel onglet)</span></a></li>
-          <li class="nav-item"><a class="nav-link" href="{{ kibana_url }}" target="_blank" rel="noopener">Kibana <span class="visually-hidden">(ouvre un nouvel onglet)</span></a></li>
-        </ul>
-      </div>
+      <a class="sb-icon-button" href="/upload" aria-label="Déposer un fichier">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 16V4 M7 9l5-5 5 5 M4 20h16"></path>
+        </svg>
+      </a>
+      <span class="sb-avatar" aria-label="Profil Zayani">ZA</span>
     </div>
+  </header>
+
+  <nav id="mainNav" class="collapse sb-sidebar" aria-label="Navigation principale">
+    <div class="sb-sidebar-scroll">
+      <p class="sb-nav-section">Principal</p>
+      <ul class="sb-nav">
+        <li>
+          <a class="sb-nav-link {{ 'active' if request.path == '/' else '' }}" href="/" {{ 'aria-current=page' if request.path == '/' else '' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7"></path><path d="M6 10v10h12V10"></path><path d="M10 20v-6h4v6"></path></svg>
+            <span class="sb-nav-label">Accueil</span>
+          </a>
+        </li>
+        <li>
+          <a class="sb-nav-link {{ 'active' if request.path == '/upload' else '' }}" href="/upload" {{ 'aria-current=page' if request.path == '/upload' else '' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4 M7 9l5-5 5 5 M4 20h16"></path></svg>
+            <span class="sb-nav-label">Upload</span>
+          </a>
+        </li>
+        <li>
+          <a class="sb-nav-link {{ 'active' if request.path == '/search' else '' }}" href="/search" {{ 'aria-current=page' if request.path == '/search' else '' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            <span class="sb-nav-label">Recherche</span>
+          </a>
+        </li>
+      </ul>
+      <p class="sb-nav-section">Données</p>
+      <ul class="sb-nav">
+        <li>
+          <a class="sb-nav-link {{ 'active' if request.path == '/results' else '' }}" href="/results" {{ 'aria-current=page' if request.path == '/results' else '' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4z"></path><path d="M8 10h8 M8 14h5"></path></svg>
+            <span class="sb-nav-label">Résultats</span>
+          </a>
+        </li>
+        <li>
+          <a class="sb-nav-link" href="{{ kibana_url }}" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V9 M10 19V5 M16 19v-7 M22 19h-20"></path></svg>
+            <span class="sb-nav-label">Kibana</span><span class="visually-hidden">(ouvre un nouvel onglet)</span>
+          </a>
+        </li>
+      </ul>
+      <p class="sb-nav-section">Outils</p>
+      <ul class="sb-nav">
+        <li>
+          <a class="sb-nav-link" href="/docs" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"></path><path d="M14 4v5h5 M8 13h8 M8 17h6"></path></svg>
+            <span class="sb-nav-label">API docs</span><span class="visually-hidden">(ouvre un nouvel onglet)</span>
+          </a>
+        </li>
+        <li>
+          <a class="sb-nav-link" href="/api/v1/history" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 3-6.2"></path><path d="M4 4v5h5 M12 8v4l3 2"></path></svg>
+            <span class="sb-nav-label">Historique JSON</span><span class="visually-hidden">(ouvre un nouvel onglet)</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <div class="sb-sidebar-footer"><span>Mini-Projet ELK</span><span>Smart Building IoT</span></div>
   </nav>
 
-  <main id="main-content" class="container flex-grow-1 py-4" tabindex="-1">
+  <button class="sb-backdrop" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-label="Fermer le menu"></button>
+
+  <main id="main-content" class="sb-content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer mt-auto py-3 bg-light border-top">
-    <div class="container d-flex flex-wrap justify-content-between gap-2 small text-muted">
+  <footer class="sb-footer">
+    <div class="sb-footer-inner">
       <span>Mini-Projet ELK · Smart Building IoT</span>
       <span>Elasticsearch · Logstash · Kibana · MongoDB · Redis</span>
     </div>

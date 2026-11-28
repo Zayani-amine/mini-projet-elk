@@ -1,22 +1,48 @@
 {% extends "base.html" %}
 {% block title %}Tableau de bord{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-  <div>
-    <h1 class="h3 mb-1">Tableau de bord Smart Building</h1>
-    <p id="dashboard-period-summary" class="text-muted mb-0">Chargement de la période…</p>
+<section class="sb-welcome">
+  <div class="sb-welcome-copy">
+    <h2 class="sb-welcome-title">Tableau de bord IoT</h2>
+    <p class="sb-welcome-subtitle">Bienvenue sur le tableau de bord IoT deSmartBuilding</p>
+    <a href="/docs" class="btn btn-primary sb-get-started">Get Started <span aria-hidden="true">→</span></a>
   </div>
-  <div class="d-flex align-items-center gap-2">
-    <a id="alerts-headline" class="alert-link-chip d-none" href="/search?log_type=alertes&amp;severity=critical">Alertes critiques <span id="alerts-headline-dot" class="status-dot" aria-hidden="true"></span></a>
-    <span id="cache-badge" class="badge text-bg-secondary">Cache : en attente</span>
+  <svg class="sb-welcome-art" viewBox="0 0 420 220" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Illustration de tableaux de bord et de graphiques" role="img">
+    <rect x="20" y="24" width="380" height="168" rx="6" stroke="#9aa2ad"></rect>
+    <path d="M20 54h380" stroke="#9aa2ad"></path>
+    <circle cx="38" cy="39" r="3"></circle>
+    <circle cx="50" cy="39" r="3"></circle>
+    <circle cx="62" cy="39" r="3"></circle>
+    <rect x="36" y="72" width="78" height="48" rx="4"></rect>
+    <path d="M48 108l14-14 12 10 16-20"></path>
+    <rect x="128" y="72" width="78" height="48" rx="4"></rect>
+    <path d="M140 110V92 M154 110V84 M168 110V98 M182 110V88"></path>
+    <rect x="220" y="72" width="164" height="104" rx="4"></rect>
+    <path d="M236 156l26-30 26 18 28-42 30 26 26-34 28 20"></path>
+    <path d="M236 164h132" stroke="#9aa2ad"></path>
+    <path d="M36 142h170 M36 160h120" stroke="#9aa2ad"></path>
+    <circle cx="322" cy="42" r="4"></circle>
+    <path d="M344 42h24"></path>
+  </svg>
+</section>
+
+<div class="sb-page-heading sb-page-heading-split">
+  <div class="sb-page-heading-copy">
+    <p class="sb-eyebrow">Vue d'ensemble</p>
+    <h1>Tableau de bord Smart Building</h1>
+    <p id="dashboard-period-summary" class="sb-page-subtitle">Chargement de la période…</p>
+  </div>
+  <div class="sb-page-heading-actions">
+    <a id="alerts-headline" class="alert-link-chip sb-alert-chip d-none" href="/search?log_type=alertes&amp;severity=critical">Alertes critiques <span id="alerts-headline-dot" class="sb-dot status-dot" aria-hidden="true"></span></a>
+    <span id="cache-badge" class="sb-cache-badge">Cache : en attente</span>
   </div>
 </div>
 
-<form id="dashboard-period-form" class="card shadow-sm mb-4" novalidate>
-  <div class="card-body d-flex flex-wrap align-items-end gap-3">
-    <div>
-      <label class="form-label small mb-1" for="dashboard-period">Période</label>
-      <select id="dashboard-period" class="form-select form-select-sm" aria-describedby="dashboard-period-error">
+<form id="dashboard-period-form" class="card sb-period-card novalidate">
+  <div class="card-body sb-period-body">
+    <div class="sb-period-field">
+      <label class="form-label" for="dashboard-period">Période</label>
+      <select id="dashboard-period" class="form-select" aria-describedby="dashboard-period-error">
         <option value="1h">1 heure</option>
         <option value="24h">24 heures</option>
         <option value="7d" selected>7 jours</option>
@@ -24,22 +50,22 @@
         <option value="custom">Personnalisée</option>
       </select>
     </div>
-    <div id="dashboard-custom-range" class="d-flex flex-wrap gap-3 d-none">
-      <div>
-        <label class="form-label small mb-1" for="dashboard-from">Du</label>
-        <input id="dashboard-from" class="form-control form-control-sm" type="datetime-local">
+    <div id="dashboard-custom-range" class="sb-period-range d-none">
+      <div class="sb-period-field">
+        <label class="form-label" for="dashboard-from">Du</label>
+        <input id="dashboard-from" class="form-control" type="datetime-local">
       </div>
-      <div>
-        <label class="form-label small mb-1" for="dashboard-to">Au</label>
-        <input id="dashboard-to" class="form-control form-control-sm" type="datetime-local">
+      <div class="sb-period-field">
+        <label class="form-label" for="dashboard-to">Au</label>
+        <input id="dashboard-to" class="form-control" type="datetime-local">
       </div>
     </div>
-    <button id="dashboard-period-apply" class="btn btn-sm btn-primary" type="submit">Appliquer</button>
-    <div id="dashboard-period-error" class="small text-danger d-none" role="alert"></div>
+    <button id="dashboard-period-apply" class="btn btn-primary" type="submit">Appliquer</button>
+    <div id="dashboard-period-error" class="sb-inline-error d-none" role="alert"></div>
   </div>
 </form>
 
-<div id="dashboard-loading" class="text-center py-5">
+<div id="dashboard-loading" class="sb-state-block">
   <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement</span></div>
   <p class="text-muted mt-3 mb-0">Chargement des statistiques…</p>
 </div>
@@ -52,48 +78,73 @@
 
 <div class="row g-3 row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-5 mb-4">
   <div class="col">
-      <div class="card kpi-card h-100 shadow-sm">
-        <div class="card-body">
-          <div id="label-temperature" class="text-muted small text-uppercase">Température moyenne</div>
-          <div id="kpi-temperature" class="kpi-value">Chargement…</div>
-          <div id="kpi-temperature-detail" class="text-muted small">En attente</div>
+    <div class="card kpi-card h-100">
+      <div class="card-body">
+        <div class="sb-kpi-top">
+          <div id="label-temperature" class="sb-kpi-label sb-kpi-label-blue">Température moyenne</div>
+          <span class="sb-kpi-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0"></path><path d="M12 11v5"></path></svg>
+          </span>
         </div>
-      </div>
-  </div>
-  <div class="col">
-    <div class="card kpi-card h-100 shadow-sm">
-      <div class="card-body">
-          <div class="text-muted small text-uppercase d-flex align-items-center gap-2"><span id="label-alerts-text">Alertes critiques</span><span id="alerts-dot" class="status-dot d-none" aria-hidden="true"></span></div>
-          <div id="kpi-alerts" class="kpi-value">Chargement…</div>
-          <div id="kpi-alerts-detail" class="text-muted small">En attente</div>
-        <div id="alerts-action" class="small severity-critical d-none">Action requise</div>
+        <div id="kpi-temperature" class="kpi-value">Chargement…</div>
+        <div id="kpi-temperature-detail" class="sb-kpi-detail">En attente</div>
       </div>
     </div>
   </div>
   <div class="col">
-    <div class="card kpi-card h-100 shadow-sm">
+    <div class="card kpi-card h-100">
       <div class="card-body">
-          <div id="label-energy" class="text-muted small text-uppercase">Énergie (kWh)</div>
-          <div id="kpi-energy" class="kpi-value">Chargement…</div>
-          <div id="kpi-energy-detail" class="text-muted small">En attente</div>
+        <div class="sb-kpi-top">
+          <div class="sb-kpi-label sb-kpi-label-danger d-flex align-items-center gap-2"><span id="label-alerts-text">Alertes critiques</span><span id="alerts-dot" class="sb-dot status-dot d-none" aria-hidden="true"></span></div>
+          <span class="sb-kpi-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 7-3 7-3 9h18c0-2-3-2-3-9a6 6 0 0 0-6-6"></path><path d="M10 21h4"></path></svg>
+          </span>
+        </div>
+        <div id="kpi-alerts" class="kpi-value">Chargement…</div>
+        <div id="kpi-alerts-detail" class="sb-kpi-detail">En attente</div>
+        <div id="alerts-action" class="sb-kpi-action d-none">Action requise</div>
       </div>
     </div>
   </div>
   <div class="col">
-    <div class="card kpi-card h-100 shadow-sm">
+    <div class="card kpi-card h-100">
       <div class="card-body">
-          <div id="label-occupancy" class="text-muted small text-uppercase">Taux d'occupation</div>
-          <div id="kpi-occupancy" class="kpi-value">Chargement…</div>
-          <div id="kpi-occupancy-detail" class="text-muted small">En attente</div>
+        <div class="sb-kpi-top">
+          <div id="label-energy" class="sb-kpi-label sb-kpi-label-green">Énergie (kWh)</div>
+          <span class="sb-kpi-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 5 14h6l-1 8 8-12h-6z"></path></svg>
+          </span>
+        </div>
+        <div id="kpi-energy" class="kpi-value">Chargement…</div>
+        <div id="kpi-energy-detail" class="sb-kpi-detail">En attente</div>
       </div>
     </div>
   </div>
   <div class="col">
-    <div class="card kpi-card h-100 shadow-sm">
+    <div class="card kpi-card h-100">
       <div class="card-body">
-          <div class="text-muted small text-uppercase">Pannes prévues</div>
-          <div id="kpi-maintenance" class="kpi-value">Chargement…</div>
-          <div id="kpi-maintenance-detail" class="text-muted small">Échéances futures</div>
+        <div class="sb-kpi-top">
+          <div id="label-occupancy" class="sb-kpi-label sb-kpi-label-violet">Taux d'occupation</div>
+          <span class="sb-kpi-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"></circle><path d="M3 20a6 6 0 0 1 12 0 M17 11a3 3 0 1 0 0-6 M17 14a5 5 0 0 1 4 5"></path></svg>
+          </span>
+        </div>
+        <div id="kpi-occupancy" class="kpi-value">Chargement…</div>
+        <div id="kpi-occupancy-detail" class="sb-kpi-detail">En attente</div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card kpi-card h-100">
+      <div class="card-body">
+        <div class="sb-kpi-top">
+          <div class="sb-kpi-label sb-kpi-label-warning">Pannes prévues</div>
+          <span class="sb-kpi-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-3 3-3-3z"></path></svg>
+          </span>
+        </div>
+        <div id="kpi-maintenance" class="kpi-value">Chargement…</div>
+        <div id="kpi-maintenance-detail" class="sb-kpi-detail">Échéances futures</div>
       </div>
     </div>
   </div>
@@ -102,7 +153,7 @@
 <div class="row g-3">
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div id="label-chart-temperature" class="card-header fw-semibold">Température moyenne par zone</div>
+      <div id="label-chart-temperature" class="card-header chart-card-header">Température moyenne par zone</div>
       <div class="card-body">
         <p class="chart-legend">Barres : moyenne par zone en °C.</p>
         <div class="chart-wrap"><canvas id="chart-temperature" role="img" aria-label="Température moyenne par zone">Graphique de température non pris en charge par ce navigateur.</canvas></div>
@@ -112,7 +163,7 @@
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div class="card-header fw-semibold d-flex align-items-center gap-2"><span id="label-chart-alerts-text">Alertes critiques</span><span id="alerts-chart-dot" class="status-dot d-none" aria-hidden="true"></span></div>
+      <div class="card-header chart-card-header d-flex align-items-center gap-2"><span id="label-chart-alerts-text">Alertes critiques</span><span id="alerts-chart-dot" class="sb-dot status-dot d-none" aria-hidden="true"></span></div>
       <div class="card-body">
         <p class="chart-legend">Ligne : nombre d'alertes critiques selon l'intervalle de la période.</p>
         <div class="chart-wrap"><canvas id="chart-alerts" role="img" aria-label="Alertes critiques par période">Graphique des alertes non pris en charge par ce navigateur.</canvas></div>
@@ -122,7 +173,7 @@
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div id="label-chart-energy" class="card-header fw-semibold">Consommation d'énergie (kWh)</div>
+      <div id="label-chart-energy" class="card-header chart-card-header">Consommation d'énergie (kWh)</div>
       <div class="card-body">
         <p class="chart-legend">Ligne : consommation électrique en kWh. Le volume d'eau est exclu de ce graphique.</p>
         <div class="chart-wrap"><canvas id="chart-energy" role="img" aria-label="Consommation électrique en kWh sur la période choisie">Graphique d'énergie non pris en charge par ce navigateur.</canvas></div>
@@ -132,7 +183,7 @@
   </div>
   <div class="col-lg-6">
     <div class="card shadow-sm h-100">
-      <div id="label-chart-occupancy" class="card-header fw-semibold">Taux d'occupation par salle</div>
+      <div id="label-chart-occupancy" class="card-header chart-card-header">Taux d'occupation par salle</div>
       <div class="card-body">
         <p class="chart-legend">Segments : taux moyen par salle en pourcentage.</p>
         <div class="chart-wrap"><canvas id="chart-occupancy" role="img" aria-label="Taux d'occupation moyen par salle sur la période choisie">Graphique d'occupation non pris en charge par ce navigateur.</canvas></div>
@@ -142,7 +193,7 @@
   </div>
   <div class="col-12" id="maintenance-table-card">
     <div class="card shadow-sm">
-      <div class="card-header fw-semibold">Prévisions de maintenance</div>
+      <div class="card-header chart-card-header">Prévisions de maintenance</div>
       <div class="card-body">
         <p class="chart-legend">Barres : usure en pourcentage pour les équipements avec échéance future.</p>
         <div class="chart-wrap chart-wrap-wide"><canvas id="chart-maintenance" role="img" aria-label="Usure des équipements en prévision de maintenance">Graphique de maintenance non pris en charge par ce navigateur.</canvas></div>

@@ -3,8 +3,11 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
   <div>
-    <h1 class="h3 mb-1">Résultats de recherche</h1>
-    <p class="text-muted mb-0">Requête : <span id="results-query" class="fw-semibold">En attente</span></p>
+    <div class="sb-page-heading">
+      <p class="sb-eyebrow">Recherche</p>
+      <h1>Résultats de recherche</h1>
+      <p class="sb-page-subtitle">Requête : <span id="results-query" class="fw-semibold">En attente</span></p>
+    </div>
   </div>
   <div class="d-flex gap-2">
     <a href="/search" class="btn btn-outline-secondary">Nouvelle recherche</a>
@@ -27,7 +30,7 @@
   <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div class="d-flex align-items-center gap-2 flex-wrap">
       <span class="badge text-bg-primary" id="results-total">Chargement…</span>
-      <span class="text-muted small" aria-live="polite">document(s) trouvé(s)</span>
+      <span class="text-muted small" aria-live="polite">documents trouvés</span>
       <span id="results-took" class="text-muted small"></span>
     </div>
     <div class="d-flex align-items-center gap-2">
